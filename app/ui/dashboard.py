@@ -1,5 +1,5 @@
 import customtkinter as ctk
-
+from app.models.producto import Producto
 
 class Dashboard(ctk.CTkFrame):
 
@@ -27,16 +27,31 @@ class Dashboard(ctk.CTkFrame):
 
         columna = 0
 
+        self.lbl_valores = []
+
         for titulo, valor in tarjetas:
 
-            card = ctk.CTkFrame(self,width=250,height=120)
+            card = ctk.CTkFrame(
+                self,
+                width=250,
+                height=120,
+                corner_radius=12,
+                fg_color="#2A2A2A"
+            )
 
-            card.grid(row=fila,column=columna,padx=20,pady=20,sticky="nsew")
+            card.grid(
+                row=fila,
+                column=columna,
+                padx=20,
+                pady=20,
+                sticky="nsew"
+            )
 
             lblTitulo = ctk.CTkLabel(
                 card,
                 text=titulo,
-                font=("Segoe UI",18,"bold")
+                font=("Segoe UI", 18, "bold"),
+                text_color="#4FC3F7"
             )
 
             lblTitulo.pack(pady=(20,10))
@@ -44,15 +59,27 @@ class Dashboard(ctk.CTkFrame):
             lblValor = ctk.CTkLabel(
                 card,
                 text=valor,
-                font=("Segoe UI",22)
+                font=("Segoe UI", 26, "bold")
             )
 
             lblValor.pack()
 
+            self.lbl_valores.append(lblValor)
+
             columna += 1
 
             if columna > 1:
-
                 columna = 0
+                fila += 1  
+        
+        self.actualizar()
 
-                fila += 1
+    def actualizar(self):
+
+        total = Producto.contar_productos()
+        bajos = Producto.contar_stock_bajo()
+
+        self.lbl_valores[0].configure(text="$0.00")
+        self.lbl_valores[1].configure(text=str(total))
+        self.lbl_valores[2].configure(text=str(bajos))
+        self.lbl_valores[3].configure(text="Sin ventas")              

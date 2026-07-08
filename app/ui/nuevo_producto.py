@@ -8,32 +8,78 @@ class NuevoProducto(ctk.CTkToplevel):
     def __init__(self, master, datos=None):
         super().__init__(master)
 
+        self.transient(master)
+        self.grab_set()
+        self.focus_force()
+        self.lift()
+        self.attributes("-topmost", True)
+        self.after(100, lambda: self.attributes("-topmost", False))
+        self.configure(fg_color="#202020")
         self.editando = False
         self.codigo_original = None
 
         self.title("Nuevo Producto")
-        self.geometry("700x600")
-        self.grab_set()
+        
+        # ========= AJUSTE DE TAMAÑO PROPORCIONAL Y CENTRADO CORECTO =========
+        # Forzar a Tkinter a actualizar los datos geométricos del master
+        master.update_idletasks()
+        
+        ancho_parent = master.winfo_width()
+        alto_parent = master.winfo_height()
+        
+        # Calculamos el proporcional (50% y 60%) pero aseguramos límites mínimos 
+        # para que el contenido nunca se corte en pantallas pequeñas.   
+        ancho = max(int(ancho_parent * 0.40), 520)
+        alto = max(int(alto_parent * 0.70), 580)
+
+        # Centrar sobre el dashboard usando las dimensiones finales calculadas
+        x = master.winfo_x() + (ancho_parent // 2) - (ancho // 2)
+        y = master.winfo_y() + (alto_parent // 2) - (alto // 2)
+        
+        self.geometry(f"{ancho}x{alto}+{x}+{y}")
+        
+        # No maximizar + siempre encima
+        # =====================================================================
 
         titulo = ctk.CTkLabel(
             self,
             text="➕ Registrar Producto",
-            font=("Segoe UI", 22, "bold")
+            font=("Segoe UI", 23, "bold"),
+            text_color="#4FC3F7"
         )
         titulo.pack(pady=20)
 
         # Código
-        ctk.CTkLabel(self, text="Código interno").pack(anchor="w", padx=20)
-        self.codigo = ctk.CTkEntry(self, width=300)
+        ctk.CTkLabel(
+            self,
+            text="Código interno",
+            text_color="#DDDDDD"
+        ).pack(anchor="w", padx=20)
+
+        self.codigo = ctk.CTkEntry(
+            self,
+            width=300,
+            fg_color="#2D2D2D",
+            border_color="#4FC3F7"
+        )
         self.codigo.pack(padx=20, pady=5)
 
         # Nombre
-        ctk.CTkLabel(self, text="Nombre").pack(anchor="w", padx=20)
+        ctk.CTkLabel(
+            self,
+            text="Nombre",
+            text_color="#DDDDDD"
+        ).pack(anchor="w", padx=20)
+
         self.nombre = ctk.CTkEntry(self, width=500)
         self.nombre.pack(padx=20, pady=5)
 
         # Unidad
-        ctk.CTkLabel(self, text="Unidad").pack(anchor="w", padx=20)
+        ctk.CTkLabel(
+            self,
+            text="Unidad",
+            text_color="#DDDDDD"
+        ).pack(anchor="w", padx=20)
 
         self.unidad = ctk.CTkComboBox(
             self,
@@ -50,7 +96,6 @@ class NuevoProducto(ctk.CTkToplevel):
                 "Lata"
             ]
         )
-
         self.unidad.pack(padx=20, pady=5)
         self.unidad.set("Pieza")
 
@@ -72,14 +117,17 @@ class NuevoProducto(ctk.CTkToplevel):
         boton = ctk.CTkButton(
             self,
             text="💾 Guardar Producto",
-            command=self.guardar_producto
+            command=self.guardar_producto,
+            fg_color="#2196F3",
+            hover_color="#1976D2",
+            text_color="white",
+            font=("Segoe UI", 15, "bold"),
+            height=42
         )
         boton.pack(pady=30)
-
         # ========= MODO EDICIÓN =========
 
         if datos:
-
             self.editando = True
             self.codigo_original = datos[0]
 
@@ -96,9 +144,7 @@ class NuevoProducto(ctk.CTkToplevel):
             titulo.configure(text="✏ Editar Producto")
 
     def guardar_producto(self):
-
         try:
-
             producto = Producto(
                 self.codigo.get(),
                 self.nombre.get(),
@@ -115,6 +161,8 @@ class NuevoProducto(ctk.CTkToplevel):
                 producto.guardar()
                 mensaje = "Producto guardado correctamente."
 
+            self.master.master.dashboard.actualizar()
+
             messagebox.showinfo(
                 "Correcto",
                 mensaje
@@ -123,7 +171,6 @@ class NuevoProducto(ctk.CTkToplevel):
             self.destroy()
 
         except Exception as e:
-
             messagebox.showerror(
                 "Error",
                 str(e)

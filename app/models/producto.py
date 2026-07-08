@@ -155,3 +155,21 @@ class Producto:
         conexion.close()
 
         return productos
+    
+    @staticmethod
+    def contar_productos():
+        conexion = sqlite3.connect("app/database/abarrotes.db")
+        cursor = conexion.cursor()
+        cursor.execute("SELECT COUNT(*) FROM productos")
+        total = cursor.fetchone()[0]
+        conexion.close()
+        return total
+    
+    @staticmethod
+    def contar_stock_bajo():
+        conexion = sqlite3.connect("app/database/abarrotes.db")
+        cursor = conexion.cursor()
+        cursor.execute("SELECT COUNT(*) FROM productos WHERE existencia < 10")
+        total = cursor.fetchone()[0]
+        conexion.close()
+        return total

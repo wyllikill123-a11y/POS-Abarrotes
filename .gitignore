@@ -1,6 +1,17 @@
+# Entorno virtual
 venv/
+
+# Caché de Python
 __pycache__/
 *.pyc
-*.db
+*.pyo
+
+# Archivos de VS Code
+.vscode/
+
+# Base de datos local
 app/database/*.db
-backups/
+
+# Archivos temporales
+*.log
+*.tmp
