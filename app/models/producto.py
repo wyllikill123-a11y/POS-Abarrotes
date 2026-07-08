@@ -64,7 +64,7 @@ class Producto:
                 precio_venta,
                 existencia
             FROM productos
-            ORDER BY nombre
+            ORDER BY codigo
         """)
 
         productos = cursor.fetchall()
@@ -124,3 +124,34 @@ class Producto:
 
         conexion.commit()
         conexion.close()
+
+    @staticmethod
+    def buscar(texto):
+
+        conexion = sqlite3.connect("app/database/abarrotes.db")
+
+        cursor = conexion.cursor()
+
+        cursor.execute("""
+            SELECT
+                codigo,
+                nombre,
+                unidad,
+                precio_compra,
+                precio_venta,
+                existencia
+            FROM productos
+            WHERE
+                codigo LIKE ?
+                OR nombre LIKE ?
+            ORDER BY nombre
+        """, (
+            f"%{texto}%",
+            f"%{texto}%"
+        ))
+
+        productos = cursor.fetchall()
+
+        conexion.close()
+
+        return productos

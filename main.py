@@ -6,3 +6,5 @@ ctk.set_default_color_theme("blue")
 
 app = MainWindow()
 app.mainloop()
+
+HOLA
