@@ -60,6 +60,91 @@ Estado:
 Estado:
 **EN DESARROLLO**
 
+# 🗺 Roadmap - Sistema Punto de Venta
+Abarrotes Rosita-Andrea (WI)
+
+## ✅ Versión 0.1
+- [x] Crear proyecto
+- [x] Base de datos SQLite
+- [x] Conexión a la base de datos
+- [x] Ventana principal
+- [x] Dashboard
+- [x] Menú lateral
+- [x] Barra de estado
+- [x] Reloj en tiempo real
+
+---
+
+## ✅ Módulo Productos
+
+### Administración
+- [x] Registrar productos
+- [x] Editar productos
+- [x] Buscar productos
+- [x] Actualizar lista
+- [x] Listado de productos
+
+### Inventario
+- [x] Existencias
+- [x] Stock mínimo por producto
+- [x] Dashboard con inventario bajo
+
+### Estado de productos
+- [x] Desactivar productos
+- [x] Reactivar productos
+- [x] Mostrar productos desactivados
+- [x] Borrado lógico
+
+### Importación / Exportación
+- [x] Exportar productos a Excel
+- [x] Importar productos desde Excel
+
+---
+
+## 🚧 Próxima etapa
+
+### Ventas
+
+- [ ] Nueva venta
+- [ ] Buscar producto
+- [ ] Agregar al carrito
+- [ ] Modificar cantidades
+- [ ] Eliminar producto
+- [ ] Calcular total
+- [ ] Cobro
+- [ ] Cambio
+- [ ] Ticket
+- [ ] Guardar venta
+- [ ] Detalle de venta
+
+---
+
+## Pendiente
+
+### Compras
+- [ ] Registrar compras
+- [ ] Actualizar inventario
+
+### Proveedores
+- [ ] CRUD de proveedores
+
+### Reportes
+- [ ] Ventas por día
+- [ ] Productos más vendidos
+- [ ] Inventario
+- [ ] Utilidad
+
+### Caja
+- [ ] Apertura
+- [ ] Corte
+- [ ] Historial
+
+### Configuración
+- [ ] Datos del negocio
+- [ ] Logo
+- [ ] Impresora
+- [ ] Respaldo automático
+
 ---
 
 ## 📅 Misiones futuras

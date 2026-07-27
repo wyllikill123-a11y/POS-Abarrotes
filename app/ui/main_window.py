@@ -2,6 +2,7 @@ import customtkinter as ctk
 from datetime import datetime
 from app.ui.dashboard import Dashboard
 from app.ui.productos_window import ProductosWindow
+from app.ui.nueva_venta_window import NuevaVentaWindow
 
 class MainWindow(ctk.CTk):
 
@@ -32,6 +33,9 @@ class MainWindow(ctk.CTk):
     def abrir_productos(self):
         ProductosWindow(self)
 
+    def abrir_ventas(self):
+        NuevaVentaWindow(self)
+
     def crear_encabezado(self):
 
         self.header = ctk.CTkFrame(
@@ -60,13 +64,12 @@ class MainWindow(ctk.CTk):
         self.reloj.pack(side="right",padx=20)
 
     def crear_menu(self):
-
         self.menu = ctk.CTkFrame(
             self,
             width=230,
             fg_color="#222222"
         )
-        self.menu.grid(row=1,column=0,sticky="ns")
+        self.menu.grid(row=1, column=0, sticky="ns")
 
         botones = [
             "🛒 Nueva Venta",
@@ -78,25 +81,28 @@ class MainWindow(ctk.CTk):
             "💲 Corte de Caja",
             "⚙ Configuración"
         ]
+
         for texto in botones:
-
-            comando = None
-
-            if texto == "📦 Productos":
-                comando = self.abrir_productos
+            # Creamos una función intermedia (wrapper) usando lambda para congelar el comando correcto
+            if texto == "🛒 Nueva Venta":
+                cmd = lambda: self.abrir_ventas()
+            elif texto == "📦 Productos":
+                cmd = lambda: self.abrir_productos()
+            else:
+                cmd = None  # Para los botones que aún no tienen ventana asignada
 
             boton = ctk.CTkButton(
                 self.menu,
                 text=texto,
                 height=50,
                 corner_radius=10,
-                font=("Segoe UI",15,"bold"),
+                font=("Segoe UI", 15, "bold"),
                 fg_color="#2B2B2B",
                 hover_color="#2196F3",
                 border_width=1,
                 border_color="#505050",
                 text_color="white",
-                command=comando
+                command=cmd  # 👈 Asignamos la variable congelada por el lambda
             )
 
             boton.pack(fill="x", padx=15, pady=8)

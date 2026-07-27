@@ -49,6 +49,47 @@ Próxima misión:
 - Campo Unidad mediante lista desplegable.
 - Validación básica y mensajes de éxito/error.
 
+# Historial de cambios
+
+## Versión 0.3.0
+
+### Dashboard
+
+• Corrección del contador de productos.
+• Inventario bajo dinámico.
+
+### Productos
+
+• Edición de productos.
+• Búsqueda por nombre y código.
+• Actualización automática.
+• Ventana mejorada.
+
+### Inventario
+
+• Stock mínimo configurable por producto.
+• Dashboard usando stock mínimo personalizado.
+
+### Estado
+
+• Implementación de borrado lógico.
+• Desactivar productos.
+• Reactivar productos.
+• Mostrar productos desactivados.
+• Indicador Activo / Desactivado.
+
+### Excel
+
+• Exportar catálogo a Excel.
+• Importar catálogo desde Excel.
+
+### Mejoras generales
+
+• Corrección de errores.
+• Mejor organización del código.
+• Optimización de consultas SQLite.
+• Mejor comunicación entre ventanas.
+
 # Versión 0.5.0 - 07/07/2026
 
 ## Productos
