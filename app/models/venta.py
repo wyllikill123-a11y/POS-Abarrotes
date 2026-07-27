@@ -1,12 +1,16 @@
 import sqlite3
 
+
 class Venta:
+
     @staticmethod
     def registrar_venta(
         carrito,
         metodo_pago="EFECTIVO",
-        descuento=0
-    ):
+        descuento=0,
+        monto_recibido=0,
+        cambio=0
+    ):    
         if not carrito:
             raise ValueError("El carrito está vacío.")
 
@@ -61,25 +65,38 @@ class Venta:
 
             total = subtotal - descuento
 
+            # Si el pago no es efectivo o no se especificó pago, el monto recibido es el total
+            if monto_recibido == 0 or metodo_pago != "EFECTIVO":
+                monto_recibido = total
+                cambio = 0
+
             # ==========================
             # GUARDAR VENTA (Tabla Maestro)
             # ==========================
-            # Ajustado para coincidir con tu tabla ventas (id, fecha, total)
             cursor.execute("""
-                INSERT INTO ventas(
-                    total
-                )
-                VALUES(?)
-            """, (total,))
-
+            INSERT INTO ventas(
+                subtotal,
+                descuento,
+                total,
+                metodo_pago,
+                monto_recibido,
+                cambio
+            )
+            VALUES(?,?,?,?,?,?)
+            """, (
+                subtotal,
+                descuento,
+                total,
+                metodo_pago,
+                monto_recibido,
+                cambio
+            ))
             venta_id = cursor.lastrowid
 
             # ==========================
-            # DETALLE DE VENTA Y DESCUENTOS
+            # DETALLE DE VENTA
             # ==========================
             for item in carrito:
-                # Ajustado para coincidir con tu tabla detalle_venta 
-                # (id, venta_id, producto_codigo, cantidad, precio_unitario, subtotal)
                 cursor.execute("""
                     INSERT INTO detalle_venta(
                         venta_id,
@@ -112,12 +129,10 @@ class Venta:
                     item["codigo"]
                 ))
 
-            # Si todas las validaciones e inserciones fueron correctas, guardamos
             conexion.commit()
             return venta_id
 
         except Exception as e:
-            # Si algo falla en el proceso, deshacemos todo para no corromper la BD
             conexion.rollback()
             raise e
 

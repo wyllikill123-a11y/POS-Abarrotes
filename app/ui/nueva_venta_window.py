@@ -148,7 +148,8 @@ class CobroEfectivoDialog(ctk.CTkToplevel):
             self.btn_confirmar.configure(state="disabled")
 
     def confirmar_cobro(self):
-        if self.cambio >= 0 and self.monto_recibido >= self.total:
+        # Validación estricta: solo permite cerrar si el dinero entregado es suficiente
+        if self.monto_recibido >= self.total and self.cambio >= 0:
             self.confirmado = True
             self.destroy()
 
@@ -287,6 +288,8 @@ class NuevaVentaWindow(ctk.CTkToplevel):
 
         if event.char and event.char.isprintable():
             self.txt_buscar.focus()
+            # Asegurar que el primer carácter capturado no se pierda al mover el foco
+            self.txt_buscar.insert("end", event.char)
 
     def configurar_layout(self):
         """Divide la ventana en secciones principales."""
@@ -564,9 +567,11 @@ class NuevaVentaWindow(ctk.CTkToplevel):
             lista_carrito = list(self.carrito.values())
             
             venta_id = Venta.registrar_venta(
-                lista_carrito, 
-                metodo_pago=metodo, 
-                descuento=0
+                lista_carrito,
+                metodo_pago=metodo,
+                descuento=0,
+                monto_recibido=monto_recibido,
+                cambio=cambio
             )
 
             # Limpiar carrito y reiniciar pantalla principal
@@ -579,7 +584,7 @@ class NuevaVentaWindow(ctk.CTkToplevel):
                 self.master.dashboard.actualizar()
 
             # Mostrar pantalla resumen de Venta Exitosa
-            dlg_éxito = VentaExitosaDialog(
+            dlg_exito = VentaExitosaDialog(
                 self, 
                 venta_id=venta_id, 
                 total=total_venta, 
@@ -587,8 +592,8 @@ class NuevaVentaWindow(ctk.CTkToplevel):
                 cambio=cambio, 
                 metodo=metodo
             )
-            self.wait_window(dlg_éxito)
-
+            self.wait_window(dlg_exito)
+            self.metodo_pago.set("EFECTIVO")
             # Foco devuelto automáticamente al buscador tras cerrar el resumen
             self.after(100, lambda: self.txt_buscar.focus())
 

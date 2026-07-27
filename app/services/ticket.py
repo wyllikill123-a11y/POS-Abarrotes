@@ -1,0 +1,1 @@
+Ticket.imprimir(venta_id)
