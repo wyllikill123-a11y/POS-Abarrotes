@@ -1,12 +1,10 @@
 import customtkinter as ctk
-from tkinter import ttk
-from tkinter import messagebox
+from tkinter import ttk, messagebox, simpledialog
 from app.models.producto import Producto
 from app.models.venta import Venta
-
+from app.printing.ticket_printer import TicketPrinter
 
 class CobroEfectivoDialog(ctk.CTkToplevel):
-
     def __init__(self, parent, total_a_pagar):
         super().__init__(parent)
         self.title("Cobro en Efectivo")
@@ -18,20 +16,17 @@ class CobroEfectivoDialog(ctk.CTkToplevel):
         self.cambio = 0.0
         self.confirmado = False
 
-        # Configuración de foco modal
         self.transient(parent)
         self.grab_set()
 
         self.crear_widgets()
 
-        # Enter para confirmar cobro / Escape para cancelar
         self.bind("<Return>", lambda e: self.confirmar_cobro())
         self.bind("<Escape>", lambda e: self.destroy())
 
         self.after(100, lambda: self.txt_recibido.focus())
 
     def crear_widgets(self):
-        # Total a pagar
         ctk.CTkLabel(
             self,
             text="TOTAL A PAGAR",
@@ -46,7 +41,6 @@ class CobroEfectivoDialog(ctk.CTkToplevel):
             text_color="#81C784"
         ).pack(pady=(0, 15))
 
-        # Input: Efectivo Recibido
         ctk.CTkLabel(
             self,
             text="Efectivo Recibido ($):",
@@ -63,7 +57,6 @@ class CobroEfectivoDialog(ctk.CTkToplevel):
         self.txt_recibido.pack(pady=5)
         self.txt_recibido.bind("<KeyRelease>", self.calcular_cambio)
 
-        # Botones de accesos directos a billetes
         frame_billetes = ctk.CTkFrame(self, fg_color="transparent")
         frame_billetes.pack(pady=10)
 
@@ -90,7 +83,6 @@ class CobroEfectivoDialog(ctk.CTkToplevel):
         )
         btn_exacto.pack(side="left", padx=3)
 
-        # Label de Cambio
         ctk.CTkLabel(
             self,
             text="CAMBIO A ENTREGAR",
@@ -106,7 +98,6 @@ class CobroEfectivoDialog(ctk.CTkToplevel):
         )
         self.lbl_cambio.pack(pady=(0, 15))
 
-        # Botón Confirmar
         self.btn_confirmar = ctk.CTkButton(
             self,
             text="✔ Confirmar Cobro (Enter)",
@@ -148,25 +139,29 @@ class CobroEfectivoDialog(ctk.CTkToplevel):
             self.btn_confirmar.configure(state="disabled")
 
     def confirmar_cobro(self):
-        # Validación estricta: solo permite cerrar si el dinero entregado es suficiente
         if self.monto_recibido >= self.total and self.cambio >= 0:
             self.confirmado = True
             self.destroy()
 
 
 class VentaExitosaDialog(ctk.CTkToplevel):
-    """Ventana flotante profesional que se muestra tras completar una venta."""
-
-    def __init__(self, parent, venta_id, total, recibido, cambio, metodo):
+    def __init__(self, parent, venta_id, carrito, total, recibido, cambio, metodo):
         super().__init__(parent)
         self.title("Venta Exitosa")
         self.geometry("380x480")
         self.resizable(False, False)
 
+        # --- GUARDAR ATRIBUTOS PARA SU USO EN IMPRIMIR_TICKET ---
+        self.venta_id = venta_id
+        self.carrito = carrito
+        self.total = total
+        self.recibido = recibido
+        self.cambio = cambio
+        self.metodo = metodo
+
         self.transient(parent)
         self.grab_set()
 
-        # Atajos por teclado
         self.bind("<F12>", lambda e: self.destroy())
         self.bind("<Return>", lambda e: self.destroy())
         self.bind("<Escape>", lambda e: self.destroy())
@@ -175,7 +170,6 @@ class VentaExitosaDialog(ctk.CTkToplevel):
         self.after(100, lambda: self.focus_set())
 
     def crear_widgets(self, venta_id, total, recibido, cambio, metodo):
-        # Encabezado
         ctk.CTkLabel(
             self,
             text="✔ VENTA EXITOSA",
@@ -190,23 +184,18 @@ class VentaExitosaDialog(ctk.CTkToplevel):
             text_color="gray"
         ).pack(pady=(0, 15))
 
-        # Tarjeta contenedora de montos
         card = ctk.CTkFrame(self, fg_color="#2B2B2B", corner_radius=10)
         card.pack(fill="x", padx=30, pady=10)
 
-        # TOTAL
         ctk.CTkLabel(card, text="TOTAL", font=("Segoe UI", 11, "bold"), text_color="gray").pack(pady=(15, 2))
         ctk.CTkLabel(card, text=f"${total:.2f}", font=("Segoe UI", 26, "bold"), text_color="#FFFFFF").pack(pady=(0, 10))
 
-        # RECIBIÓ
         ctk.CTkLabel(card, text=f"RECIBIÓ ({metodo})", font=("Segoe UI", 11, "bold"), text_color="gray").pack(pady=(5, 2))
         ctk.CTkLabel(card, text=f"${recibido:.2f}", font=("Segoe UI", 22, "bold"), text_color="#E0E0E0").pack(pady=(0, 10))
 
-        # CAMBIO
         ctk.CTkLabel(card, text="CAMBIO A ENTREGAR", font=("Segoe UI", 11, "bold"), text_color="gray").pack(pady=(5, 2))
         ctk.CTkLabel(card, text=f"${cambio:.2f}", font=("Segoe UI", 28, "bold"), text_color="#64B5F6").pack(pady=(0, 15))
 
-        # Acciones inferiores
         btn_imprimir = ctk.CTkButton(
             self,
             text="🖨 Imprimir Ticket",
@@ -230,69 +219,63 @@ class VentaExitosaDialog(ctk.CTkToplevel):
         btn_nueva_venta.pack(fill="x", padx=30, pady=(5, 15))
 
     def imprimir_ticket(self):
-        """Lógica para mandar a imprimir ticket."""
-        messagebox.showinfo("Impresión", "Enviando ticket a la impresora...")
-
+        try:
+            TicketPrinter.imprimir_ticket_venta(
+                venta_id=self.venta_id,
+                carrito=self.carrito,
+                total=self.total,
+                recibido=self.recibido,
+                cambio=self.cambio,
+                metodo=self.metodo
+            )
+            messagebox.showinfo("Impresión", "El ticket se ha enviado a la impresora.")
+        except Exception as e:
+            messagebox.showerror("Error de Impresión", f"{str(e)}")
 
 class NuevaVentaWindow(ctk.CTkToplevel):
 
     def __init__(self, master):
         super().__init__(master)
 
-        # Configuración básica de la ventana flotante
         self.title("Nueva Venta - Abarrotes Rosita-Andrea")
         self.geometry("950x600")
         self.minsize(850, 500)
         
-        # Alineación y foco
         master.update_idletasks()
         self.transient(master)
         self.grab_set()
         self.focus_set()
 
-        # ==========================================
-        # CARRITO DE LA VENTA
-        # ==========================================
         self.carrito = {}
 
-        # 🎯 CAPTURA GLOBAL TECLADO / ESCÁNER:
+        # Redirección de escáner y accesos directos
         self.bind("<Key>", self._redireccionar_escanner)
-
-        # Atajos de teclado del Punto de Venta
         self.bind("<F12>", lambda e: self.cobrar())
+        self.bind("<F2>", lambda e: self.cambiar_cantidad_seleccionada())
         self.bind("<Escape>", lambda e: self.destroy())
-        self.bind("<Delete>", lambda e: self.disminuir_o_eliminar_seleccionado())
+        self.bind("<Delete>", lambda e: self.eliminar_seleccionado())
 
-        # Estructura principal
         self.configurar_layout()
-
-        # Componentes
         self.crear_barra_busqueda()
         self.crear_tabla_carrito()
         self.crear_panel_totales()
 
-        # Foco inicial
         self.after(100, lambda: self.txt_buscar.focus())
 
     def _redireccionar_escanner(self, event):
-        """
-        Redirige la entrada del escáner al buscador si se pierde el foco.
-        """
         widget_actual = self.focus_get()
         
         if widget_actual == self.txt_buscar._entry:
             return
 
-        if event.keysym in ("F12", "Escape", "Delete", "BackSpace", "Return", "Tab"):
+        if event.keysym in ("F12", "F2", "Escape", "Delete", "BackSpace", "Return", "Tab"):
             return
 
         if event.char and event.char.isprintable():
             self.txt_buscar.focus()
-            # Asegurar que el primer carácter capturado no se pierda al mover el foco
             self.txt_buscar.insert("end", event.char)
 
     def configurar_layout(self):
-        """Divide la ventana en secciones principales."""
         self.frame_izquierdo = ctk.CTkFrame(self, fg_color="transparent")
         self.frame_izquierdo.pack(side="left", fill="both", expand=True, padx=(15, 10), pady=15)
 
@@ -301,7 +284,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         self.frame_derecho.pack_propagate(False)
 
     def crear_barra_busqueda(self):
-        """Crea los inputs para buscar productos."""
         barra_superior = ctk.CTkFrame(self.frame_izquierdo, fg_color="transparent")
         barra_superior.pack(fill="x", pady=(0, 15))
 
@@ -327,7 +309,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         btn_agregar.pack(side="right")
 
     def crear_tabla_carrito(self):
-        """Diseño de la tabla del carrito."""
         tabla_frame = ctk.CTkFrame(self.frame_izquierdo)
         tabla_frame.pack(fill="both", expand=True)
 
@@ -362,8 +343,8 @@ class NuevaVentaWindow(ctk.CTkToplevel):
 
         self.tabla.column("codigo", width=120, anchor="center")
         self.tabla.column("nombre", width=250, anchor="w")
-        self.tabla.column("cantidad", width=70, anchor="center")
-        self.tabla.column("unidad", width=90, anchor="center")
+        self.tabla.column("cantidad", width=80, anchor="center")
+        self.tabla.column("unidad", width=80, anchor="center")
         self.tabla.column("precio", width=90, anchor="e")
         self.tabla.column("subtotal", width=100, anchor="e")
 
@@ -373,11 +354,10 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         self.tabla.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # Restar uno con doble clic
-        self.tabla.bind("<Double-1>", lambda e: self.disminuir_o_eliminar_seleccionado())
+        # Doble clic permite modificar la cantidad rápidamente
+        self.tabla.bind("<Double-1>", lambda e: self.cambiar_cantidad_seleccionada())
 
     def crear_panel_totales(self):
-        """Panel lateral de cobro y resumen."""
         lbl_resumen = ctk.CTkLabel(
             self.frame_derecho,
             text="Resumen de Venta",
@@ -434,7 +414,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         self.btn_cobrar.pack(side="bottom", fill="x", padx=20, pady=25)
 
     def agregar_producto_click(self):
-        """Busca el producto y gestiona su adición."""
         busqueda = self.txt_buscar.get().strip()
         if not busqueda:
             return
@@ -447,13 +426,35 @@ class NuevaVentaWindow(ctk.CTkToplevel):
                 producto_db = resultados[0]
 
         if producto_db:
-            self.agregar_al_carrito({
-                "codigo": producto_db["codigo"],
-                "nombre": producto_db["nombre"],
-                "unidad": producto_db["unidad"],
-                "precio": float(producto_db["precio_venta"])
-            })
+            # Convertir sqlite3.Row / tuple a dict para homogeneizar el acceso a campos
+            prod_dict = dict(producto_db) if not isinstance(producto_db, dict) else producto_db
 
+            # Obtener campos de forma segura
+            prod_id = prod_dict.get("id") or prod_dict.get("codigo")
+            prod_codigo = prod_dict.get("codigo")
+            prod_nombre = prod_dict.get("nombre")
+            prod_precio = float(prod_dict.get("precio_venta", prod_dict.get("precio", 0.0)))
+            unidad = str(prod_dict.get("unidad", "PZA")).upper()
+
+            # Si el producto es a granel, solicitar peso
+            if unidad not in ["PZA", "PIEZA", "UNIDAD"]:
+                cantidad = self.solicitar_peso_granel(prod_nombre, unidad)
+                if cantidad is None or cantidad <= 0:
+                    self.after(100, lambda: self.txt_buscar.focus())
+                    return
+            else:
+                cantidad = 1.0
+
+            # Agregar un solo elemento al carrito
+            self.agregar_al_carrito({
+                "id": prod_id,
+                "codigo": prod_codigo,
+                "nombre": prod_nombre,
+                "unidad": unidad,
+                "precio": prod_precio
+            }, cantidad=cantidad)
+
+            # Refrescar la interfaz y limpiar la caja de texto
             self.actualizar_tabla()
             self.txt_buscar.delete(0, "end")
             self.txt_buscar.focus()
@@ -461,27 +462,38 @@ class NuevaVentaWindow(ctk.CTkToplevel):
             messagebox.showwarning("No Encontrado", f"No se encontró ningún producto activo con el término: '{busqueda}'")
             self.after(100, lambda: self.txt_buscar.focus())
 
-    def agregar_al_carrito(self, producto):
-        """Añade o incrementa en 1 la cantidad del producto."""
+    def solicitar_peso_granel(self, nombre_prod, unidad):
+        """Abre un diálogo simple para ingresar peso o decimales de un producto a granel."""
+        val = simpledialog.askfloat(
+            "Venta a Granel",
+            f"Ingrese la cantidad ({unidad}) para:\n{nombre_prod}",
+            minvalue=0.001,
+            maxvalue=999.0,
+            parent=self
+        )
+        return val
+
+    def agregar_al_carrito(self, producto, cantidad=1.0):
         codigo = producto["codigo"]
 
         if codigo in self.carrito:
-            self.carrito[codigo]["cantidad"] += 1
+            self.carrito[codigo]["cantidad"] += cantidad
             self.carrito[codigo]["subtotal"] = (
                 self.carrito[codigo]["cantidad"] * self.carrito[codigo]["precio"]
             )
         else:
             self.carrito[codigo] = {
+                "id": producto["id"],
                 "codigo": producto["codigo"],
                 "nombre": producto["nombre"],
                 "unidad": producto["unidad"],
-                "cantidad": 1,
+                "cantidad": cantidad,
                 "precio": producto["precio"],
-                "subtotal": producto["precio"]
+                "subtotal": cantidad * producto["precio"]
             }
 
-    def disminuir_o_eliminar_seleccionado(self):
-        """Disminuye en 1 la cantidad del producto seleccionado o lo elimina si llega a 0."""
+    def cambiar_cantidad_seleccionada(self):
+        """Permite modificar la cantidad del producto seleccionado en la tabla (F2 o Doble Clic)."""
         seleccion = self.tabla.selection()
         if not seleccion:
             return
@@ -490,31 +502,56 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         codigo = datos[0]
 
         if codigo in self.carrito:
-            self.carrito[codigo]["cantidad"] -= 1
+            item = self.carrito[codigo]
+            nueva_cant = simpledialog.askfloat(
+                "Modificar Cantidad",
+                f"Modificar cantidad para {item['nombre']} ({item['unidad']}):",
+                initialvalue=item["cantidad"],
+                minvalue=0.0,
+                parent=self
+            )
 
-            if self.carrito[codigo]["cantidad"] <= 0:
-                del self.carrito[codigo]
-            else:
-                self.carrito[codigo]["subtotal"] = (
-                    self.carrito[codigo]["cantidad"] * self.carrito[codigo]["precio"]
-                )
+            if nueva_cant is not None:
+                if nueva_cant <= 0:
+                    del self.carrito[codigo]
+                else:
+                    self.carrito[codigo]["cantidad"] = nueva_cant
+                    self.carrito[codigo]["subtotal"] = nueva_cant * item["precio"]
 
+                self.actualizar_tabla()
+        
+        self.after(100, lambda: self.txt_buscar.focus())
+
+    def eliminar_seleccionado(self):
+        """Elimina por completo el ítem seleccionado con la tecla Supr / Delete."""
+        seleccion = self.tabla.selection()
+        if not seleccion:
+            return
+
+        datos = self.tabla.item(seleccion[0], "values")
+        codigo = datos[0]
+
+        if codigo in self.carrito:
+            del self.carrito[codigo]
             self.actualizar_tabla()
-            self.after(100, lambda: self.txt_buscar.focus())
+
+        self.after(100, lambda: self.txt_buscar.focus())
 
     def actualizar_tabla(self):
-        """Redibuja el Treeview con los ítems actualizados."""
         for fila in self.tabla.get_children():
             self.tabla.delete(fila)
 
         for producto in self.carrito.values():
+            cant = producto["cantidad"]
+            cant_str = f"{cant:.3f}" if isinstance(cant, float) and not cant.is_integer() else f"{int(cant)}"
+            
             self.tabla.insert(
                 "",
                 "end",
                 values=(
                     producto["codigo"],
                     producto["nombre"],
-                    producto["cantidad"],
+                    cant_str,
                     producto["unidad"],
                     f"${producto['precio']:.2f}",
                     f"${producto['subtotal']:.2f}"
@@ -523,11 +560,10 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         self.actualizar_totales()
 
     def actualizar_totales(self):
-        """Actualiza totales de la pantalla."""
         total = sum(item["subtotal"] for item in self.carrito.values())
-        articulos = sum(item["cantidad"] for item in self.carrito.values())
+        articulos = len(self.carrito)
 
-        self.lbl_articulos.configure(text=f"Artículos: {articulos}")
+        self.lbl_articulos.configure(text=f"Productos dist.: {articulos}")
         self.lbl_total_numero.configure(text=f"${total:.2f}")
 
         if total > 0:
@@ -536,7 +572,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
             self.btn_cobrar.configure(state="disabled")
 
     def cobrar(self):
-        """Procesa la venta diferenciando el método de pago."""
         if not self.carrito:
             messagebox.showwarning("Venta Vacía", "No hay productos en el carrito para procesar.")
             return
@@ -562,41 +597,46 @@ class NuevaVentaWindow(ctk.CTkToplevel):
                 self.after(100, lambda: self.txt_buscar.focus())
                 return
 
-        # Registrar la venta en la base de datos
         try:
-            lista_carrito = list(self.carrito.values())
-            
+            items_carrito = list(self.carrito.values())
+
             venta_id = Venta.registrar_venta(
-                lista_carrito,
+                carrito=items_carrito,
                 metodo_pago=metodo,
                 descuento=0,
                 monto_recibido=monto_recibido,
                 cambio=cambio
             )
 
-            # Limpiar carrito y reiniciar pantalla principal
             self.carrito.clear()
             self.actualizar_tabla()
-
             self.txt_buscar.delete(0, "end")
 
-            if hasattr(self.master, 'dashboard'):
+            if hasattr(self.master, 'dashboard') and hasattr(self.master.dashboard, 'actualizar'):
                 self.master.dashboard.actualizar()
 
-            # Mostrar pantalla resumen de Venta Exitosa
+          # Instanciar pasando también el parámetro 'carrito'
             dlg_exito = VentaExitosaDialog(
                 self, 
                 venta_id=venta_id, 
+                carrito=items_carrito,  # <--- AGREGAR ESTA LÍNEA
                 total=total_venta, 
                 recibido=monto_recibido, 
                 cambio=cambio, 
                 metodo=metodo
             )
             self.wait_window(dlg_exito)
+            
             self.metodo_pago.set("EFECTIVO")
-            # Foco devuelto automáticamente al buscador tras cerrar el resumen
+            self.after(100, lambda: self.txt_buscar.focus())
+
+        except ValueError as err_val:
+            messagebox.showwarning("Atención", str(err_val))
             self.after(100, lambda: self.txt_buscar.focus())
 
         except Exception as err:
-            messagebox.showerror("Error al Guardar", f"No se pudo registrar la venta:\n{str(err)}")
-            self.after(100, lambda: self.txt_buscar.focus())
+                    import traceback
+                    print("ERROR DETALLADO EN REGISTRAR VENTA:")
+                    traceback.print_exc()  # Esto imprimirá la falla exacta en la consola
+                    messagebox.showerror("Error al Registrar Venta", f"Detalle del error:\n{str(err)}")
+                    self.after(100, lambda: self.txt_buscar.focus())

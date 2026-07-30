@@ -153,7 +153,7 @@ class Producto:
     def obtener_todos(incluir_desactivados=False):
         condicion = "" if incluir_desactivados else "WHERE activo = 1"
         query = f"""
-            SELECT codigo, codigo_barras, nombre, unidad, tipo_venta,
+            SELECT id, codigo, codigo_barras, nombre, unidad, tipo_venta,
                    precio_compra, precio_venta, existencia, stock_minimo,
                    categoria_id, activo
             FROM productos
@@ -172,7 +172,7 @@ class Producto:
     def buscar(texto, incluir_desactivados=False):
         filtro_activo = "" if incluir_desactivados else "AND activo = 1"
         query = f"""
-            SELECT codigo, codigo_barras, nombre, unidad, tipo_venta,
+            SELECT id, codigo, codigo_barras, nombre, unidad, tipo_venta,
                    precio_compra, precio_venta, existencia, stock_minimo,
                    categoria_id, activo
             FROM productos
@@ -190,7 +190,7 @@ class Producto:
     def buscar_por_codigo(codigo):
         """Busca un producto por su código interno o código de barras (independiente de si está activo o no)."""
         query = """
-            SELECT codigo, codigo_barras, nombre, unidad, tipo_venta,
+            SELECT id, codigo, codigo_barras, nombre, unidad, tipo_venta,
                    precio_compra, precio_venta, existencia, stock_minimo,
                    categoria_id, activo
             FROM productos
