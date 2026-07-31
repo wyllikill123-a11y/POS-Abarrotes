@@ -1,7 +1,10 @@
 import sqlite3
 from pathlib import Path
 
-DB_FOLDER = Path("app/database")
+# Carpeta donde está instalado el programa
+BASE_DIR = Path(__file__).resolve().parent
+
+DB_FOLDER = BASE_DIR
 DB_FILE = DB_FOLDER / "abarrotes.db"
 
 def conectar():

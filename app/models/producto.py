@@ -1,6 +1,8 @@
 import sqlite3
+from pathlib import Path
 
-DB_PATH = "app/database/abarrotes.db"
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_PATH = BASE_DIR / "database" / "abarrotes.db"
 
 
 def obtener_conexion():
