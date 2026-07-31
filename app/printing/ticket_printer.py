@@ -14,7 +14,7 @@ class TicketPrinter:
         return win32print.GetDefaultPrinter()
 
     @staticmethod
-    def imprimir_ticket(
+    def imprimir_ticket_venta(
         venta_id,
         carrito,
         total,

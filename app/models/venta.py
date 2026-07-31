@@ -223,9 +223,9 @@ class Venta:
                 WHERE venta_id = ?
                 ORDER BY id ASC
             """, (venta_id,))
-            detalle = cursor.fetchall()
+            detalles = cursor.fetchall()
 
-            return venta, detalle
+            return venta, detalles
         finally:
             conexion.close()
 
@@ -239,7 +239,7 @@ class Venta:
                 cursor.execute("""
                     SELECT *
                     FROM ventas
-                    WHERE DATE(fecha) = DATE('now', 'localtime')
+                    WHERE DATE(fecha, 'localtime') = DATE('now', 'localtime')
                     ORDER BY fecha DESC
                 """)
             else:
@@ -266,7 +266,7 @@ class Venta:
                         COALESCE(SUM(total), 0) as total_cobrado,
                         COALESCE(SUM(descuento), 0) as total_descuentos
                     FROM ventas
-                    WHERE DATE(fecha) = DATE('now', 'localtime')
+                    WHERE DATE(fecha, 'localtime') = DATE('now', 'localtime')
                 """)
             else:
                 cursor.execute("""
@@ -355,7 +355,7 @@ class Venta:
             cursor.execute("""
                 SELECT IFNULL(SUM(total), 0)
                 FROM ventas
-                WHERE DATE(fecha) = DATE('now', 'localtime')
+                WHERE DATE(fecha, 'localtime') = DATE('now', 'localtime')
             """)
             return cursor.fetchone()[0]
         finally:
