@@ -73,16 +73,52 @@ class Dashboard(ctk.CTkFrame):
         self.actualizar()
 
     def actualizar(self):
-        total = Producto.contar_productos()
-        bajos = Producto.contar_stock_bajo()
+        from app.models.venta import Venta
 
-        self.lbl_valores[0].configure(text="$0.00")
-        self.lbl_valores[1].configure(text=str(total))
-        
-        # Opcional: Si hay stock bajo, podemos poner el número en rojo para llamar la atención
-        if bajos > 0:
-            self.lbl_valores[2].configure(text=str(bajos), text_color="#FF5252")
+        # Productos
+        total_productos = Producto.contar_productos()
+        inventario_bajo = Producto.contar_stock_bajo()
+
+        # Ventas
+        total_hoy = Venta.total_hoy()
+        ultima = Venta.ultima_venta()
+
+        # ==========================
+        # TARJETA 1 - Ventas del día
+        # ==========================
+        self.lbl_valores[0].configure(
+            text=f"${total_hoy:,.2f}"
+        )
+
+        # ==========================
+        # TARJETA 2 - Productos
+        # ==========================
+        self.lbl_valores[1].configure(
+            text=str(total_productos)
+        )
+
+        # ==========================
+        # TARJETA 3 - Inventario bajo
+        # ==========================
+        if inventario_bajo > 0:
+            self.lbl_valores[2].configure(
+                text=str(inventario_bajo),
+                text_color="#FF5252"
+            )
         else:
-            self.lbl_valores[2].configure(text=str(bajos), text_color="#FFFFFF")
-            
-        self.lbl_valores[3].configure(text="Sin ventas")
+            self.lbl_valores[2].configure(
+                text="0",
+                text_color="#FFFFFF"
+            )
+
+        # ==========================
+        # TARJETA 4 - Última venta
+        # ==========================
+        if ultima:
+            self.lbl_valores[3].configure(
+                text=f"Folio #{ultima['id']}"
+            )
+        else:
+            self.lbl_valores[3].configure(
+                text="Sin ventas"
+            )

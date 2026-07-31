@@ -436,6 +436,7 @@ class NuevaVentaWindow(ctk.CTkToplevel):
             prod_precio = float(prod_dict.get("precio_venta", prod_dict.get("precio", 0.0)))
             unidad = str(prod_dict.get("unidad", "PZA")).upper()
 
+
             # Si el producto es a granel, solicitar peso
             if unidad not in ["PZA", "PIEZA", "UNIDAD"]:
                 cantidad = self.solicitar_peso_granel(prod_nombre, unidad)
