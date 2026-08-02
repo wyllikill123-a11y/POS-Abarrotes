@@ -17,14 +17,13 @@ def conectar():
     """Abre y retorna una conexión a la base de datos SQLite."""
     DB_FOLDER.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_FILE)
-    # Habilitar llaves foráneas explícitamente en SQLite
     conn.execute("PRAGMA foreign_keys = ON;")
-    conn.row_factory = sqlite3.Row  # Permite acceder a columnas por nombre
+    conn.row_factory = sqlite3.Row
     return conn
 
 
 def inicializar_bd():
-    """Crea las tablas necesarias si no existen."""
+    """Crea las tablas necesarias si no existen y aplica migraciones."""
     conn = conectar()
     cursor = conn.cursor()
 
@@ -54,7 +53,7 @@ def inicializar_bd():
         )
     """)
 
-    # 4. Tabla Productos
+    # 4. Tabla Productos (Permite 'Unidad' o 'Granel' en tipo_venta)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS productos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,6 +72,7 @@ def inicializar_bd():
             stock_minimo REAL DEFAULT 0,
 
             unidad TEXT DEFAULT 'PZA',
+            tipo_venta TEXT DEFAULT 'Unidad' CHECK(tipo_venta IN ('Unidad', 'Granel')),
             activo INTEGER DEFAULT 1,
 
             FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE SET NULL,
@@ -80,6 +80,17 @@ def inicializar_bd():
             FOREIGN KEY (proveedor_id) REFERENCES proveedores(id) ON DELETE SET NULL
         )
     """)
+
+    # -------------------------------------------------------------
+    # MIGRACIÓN AUTOMÁTICA: Agregar tipo_venta si la BD ya existía
+    # -------------------------------------------------------------
+    try:
+        cursor.execute(
+            "ALTER TABLE productos ADD COLUMN tipo_venta TEXT DEFAULT 'Unidad'"
+        )
+    except sqlite3.OperationalError:
+        # La columna 'tipo_venta' ya existe en la tabla, ignorar error.
+        pass
 
     # 5. Tabla Encabezado de Ventas
     cursor.execute("""

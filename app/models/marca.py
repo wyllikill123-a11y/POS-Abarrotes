@@ -1,15 +1,22 @@
 import sqlite3
+import sys
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "database" / "abarrotes.db"
+if getattr(sys, "frozen", False):
+    BASE_DIR = Path(sys.executable).parent
+else:
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+DB_PATH = BASE_DIR / "datos" / "abarrotes.db"
 
 
 def obtener_conexion():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
     conexion = sqlite3.connect(
         DB_PATH,
         timeout=30,
-        check_same_thread=False,
+        check_same_thread=False
     )
 
     conexion.row_factory = sqlite3.Row
@@ -47,10 +54,41 @@ class Marca:
 
             return cursor.fetchone()
 
+    # ==========================================================
+    # BUSCAR POR NOMBRE
+    # ==========================================================
     @staticmethod
-    def agregar(nombre):
+    def buscar(termino=""):
+        """Busca marcas por coincidencia en el nombre."""
+        termino_like = f"%{termino.strip()}%"
+
         with obtener_conexion() as conexion:
             cursor = conexion.cursor()
+
+            cursor.execute("""
+                SELECT *
+                FROM marcas
+                WHERE nombre LIKE ?
+                ORDER BY nombre ASC
+            """, (termino_like,))
+
+            return cursor.fetchall()
+
+    @staticmethod
+    def agregar(nombre):
+        nombre = nombre.strip()
+
+        with obtener_conexion() as conexion:
+            cursor = conexion.cursor()
+
+            cursor.execute("""
+                SELECT id
+                FROM marcas
+                WHERE UPPER(nombre)=UPPER(?)
+            """, (nombre,))
+
+            if cursor.fetchone():
+                raise ValueError("Ya existe una marca con ese nombre.")
 
             cursor.execute("""
                 INSERT INTO marcas(nombre)
@@ -61,8 +99,20 @@ class Marca:
 
     @staticmethod
     def actualizar(id_marca, nombre):
+        nombre = nombre.strip()
+
         with obtener_conexion() as conexion:
             cursor = conexion.cursor()
+
+            cursor.execute("""
+                SELECT id
+                FROM marcas
+                WHERE UPPER(nombre)=UPPER(?)
+                AND id<>?
+            """, (nombre, id_marca))
+
+            if cursor.fetchone():
+                raise ValueError("Ya existe una marca con ese nombre.")
 
             cursor.execute("""
                 UPDATE marcas
@@ -74,20 +124,18 @@ class Marca:
 
     @staticmethod
     def eliminar(id_marca):
-        with obtener_conexion() as conexion:
-            cursor = conexion.cursor()
+        try:
+            with obtener_conexion() as conexion:
+                cursor = conexion.cursor()
 
-            cursor.execute("""
-                DELETE FROM marcas
-                WHERE id=?
-            """, (id_marca,))
+                cursor.execute("""
+                    DELETE FROM marcas
+                    WHERE id=?
+                """, (id_marca,))
 
-            conexion.commit()
-    @classmethod
-    def buscar(cls, termino=""):
-        """Busca marcas por nombre que coincidan con el término."""
-        if not termino:
-            return cls.obtener_todas()
+                conexion.commit()
 
-        sql = "SELECT id, nombre FROM marcas WHERE nombre LIKE ? ORDER BY nombre ASC"
-        # Ajusta según la forma en que tu modelo ejecuta las consultas
+        except sqlite3.IntegrityError:
+            raise ValueError(
+                "No se puede eliminar la marca porque está siendo utilizada por uno o más productos."
+            )

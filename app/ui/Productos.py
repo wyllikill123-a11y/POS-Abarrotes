@@ -1,17 +1,28 @@
 import sqlite3
+import sys
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "database" / "abarrotes.db"
+if getattr(sys, "frozen", False):
+    BASE_DIR = Path(sys.executable).parent
+else:
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+DB_PATH = BASE_DIR / "datos" / "abarrotes.db"
 
 
 def obtener_conexion():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
     conexion = sqlite3.connect(
-        DB_PATH, timeout=30, check_same_thread=False
+        DB_PATH,
+        timeout=30,
+        check_same_thread=False
     )
+
     conexion.row_factory = sqlite3.Row
     conexion.execute("PRAGMA foreign_keys = ON")
     conexion.execute("PRAGMA journal_mode=WAL")
+
     return conexion
 
 
@@ -33,9 +44,9 @@ class Producto:
         stock_minimo,
         activo=1,
     ):
-        self.codigo = codigo
-        self.codigo_barras = codigo_barras
-        self.nombre = nombre
+        self.codigo = str(codigo).strip()
+        self.codigo_barras = str(codigo_barras).strip() if codigo_barras else ""
+        self.nombre = str(nombre).strip()
         self.categoria_id = categoria_id
         self.marca_id = marca_id
         self.proveedor_id = proveedor_id
@@ -51,6 +62,9 @@ class Producto:
     # GUARDAR
     # =====================================================
     def guardar(self):
+        if Producto.existe_codigo(self.codigo):
+            raise ValueError(f"Ya existe un producto registrado con el código '{self.codigo}'.")
+
         with obtener_conexion() as conexion:
             cursor = conexion.cursor()
             cursor.execute(
@@ -100,6 +114,13 @@ class Producto:
         stock_minimo,
         activo=1,
     ):
+        codigo = str(codigo).strip()
+        codigo_original = str(codigo_original).strip()
+
+        # Si cambió el código, verificar que el nuevo no exista en otro producto
+        if codigo != codigo_original and Producto.existe_codigo(codigo):
+            raise ValueError(f"El nuevo código '{codigo}' ya pertenece a otro producto.")
+
         with obtener_conexion() as conexion:
             cursor = conexion.cursor()
             cursor.execute(
@@ -124,8 +145,8 @@ class Producto:
             """,
                 (
                     codigo,
-                    codigo_barras,
-                    nombre,
+                    str(codigo_barras).strip() if codigo_barras else "",
+                    str(nombre).strip(),
                     categoria_id,
                     marca_id,
                     proveedor_id,
@@ -177,10 +198,11 @@ class Producto:
                 conexion.commit()
 
     # =====================================================
-    # BUSCAR POR CODIGO
+    # BUSCAR POR CODIGO O CODIGO DE BARRAS
     # =====================================================
     @staticmethod
     def buscar_por_codigo(codigo):
+        codigo = str(codigo).strip()
         with obtener_conexion() as conexion:
             cursor = conexion.cursor()
             cursor.execute(
@@ -201,7 +223,7 @@ class Producto:
             return cursor.fetchone()
 
     # =====================================================
-    # OBTENER TODOS (CON NOMBRES DE CATEGORÍA, MARCA Y PROVEEDOR)
+    # OBTENER TODOS
     # =====================================================
     @staticmethod
     def obtener_todos(incluir_desactivados=False):
@@ -228,7 +250,7 @@ class Producto:
             return cursor.fetchall()
 
     # =====================================================
-    # BUSCAR
+    # BUSCAR POR TEXTO
     # =====================================================
     @staticmethod
     def buscar(texto, incluir_desactivados=False):
@@ -258,7 +280,7 @@ class Producto:
 
             sql += " ORDER BY p.nombre"
 
-            parametro = f"%{texto}%"
+            parametro = f"%{texto.strip()}%"
             cursor.execute(sql, (parametro, parametro, parametro, parametro, parametro))
             return cursor.fetchall()
 
@@ -310,11 +332,11 @@ class Producto:
             return cursor.fetchone()[0]
 
     # =====================================================
-    # EXPORTAR / IMPORTAR
+    # EXPORTAR / IMPORTAR / VALIDACIONES
     # =====================================================
     @staticmethod
     def obtener_todos_para_excel():
-        return Producto.obtener_todos(True)
+        return Producto.obtener_todos(incluir_desactivados=True)
 
     @staticmethod
     def importar_desde_lista(lista):
@@ -344,8 +366,7 @@ class Producto:
                 FROM productos
                 WHERE codigo=?
                 """,
-                (codigo,),
+                (str(codigo).strip(),),
             )
 
-            return cursor.fetchone() is not None  
-            
+            return cursor.fetchone() is not None

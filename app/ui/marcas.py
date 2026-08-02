@@ -1,75 +1,136 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
+import customtkinter as ctk
 
 # Importamos la clase Marca del modelo
 from app.models.marca import Marca
 
 
-class AdminMarcas(tk.Toplevel):
+class AdminMarcas(ctk.CTkToplevel):
 
     def __init__(self, parent=None, al_seleccionar_callback=None):
         super().__init__(parent)
         self.parent = parent
-        self.al_seleccionar_callback = al_seleccionar_callback  # Callback para uso modal
+        self.al_seleccionar_callback = (
+            al_seleccionar_callback  # Callback para uso modal
+        )
         self.id_seleccionado = None  # Almacena el ID si estamos en modo edición
 
-        self.title("Administrar Marcas")
-        self.geometry("550x450")
+        self.title("Administración de Marcas")
+        self.geometry("580x500")
         self.resizable(False, False)
 
-        # Si viene con padre, se comporta como ventana modal
+        # Configuración para ventana modal
         if parent:
+            parent.update_idletasks()
             self.transient(parent)
             self.grab_set()
+            self.focus_set()
 
+        self.configurar_estilo_tabla()
         self.crear_widgets()
         self.cargar_marcas()
 
-        # Vinculación de eventos teclado
+        # Vinculación de eventos
         self.txt_buscar.bind("<KeyRelease>", self.filtrar_marcas)
         self.txt_nombre.bind("<Return>", lambda e: self.guardar_marca())
 
         # Focus inicial
         self.txt_buscar.focus_set()
 
+    def configurar_estilo_tabla(self):
+        """Aplica el estilo oscuro coherente con CustomTkinter para la tabla."""
+        style = ttk.Style()
+        style.theme_use("clam")
+
+        style.configure(
+            "Treeview",
+            background="#242424",
+            fieldbackground="#242424",
+            foreground="white",
+            rowheight=28,
+            font=("Segoe UI", 10),
+        )
+
+        style.map(
+            "Treeview",
+            background=[("selected", "#1f538d")],
+            foreground=[("selected", "white")],
+        )
+
+        style.configure(
+            "Treeview.Heading",
+            background="#1A1A1A",
+            foreground="white",
+            font=("Segoe UI", 10, "bold"),
+            borderwidth=1,
+            relief="flat",
+        )
+
+        style.map(
+            "Treeview.Heading",
+            background=[("active", "#2D2D2D")],
+            foreground=[("active", "white")],
+        )
+
     # ==========================================================
     # INTERFAZ Y WIDGETS
     # ==========================================================
     def crear_widgets(self):
-        main_container = ttk.Frame(self, padding=15)
-        main_container.pack(fill=tk.BOTH, expand=True)
-
         # --- SECCIÓN 1: FORMULARIO (EDICIÓN / CREACIÓN) ---
-        frame_form = ttk.LabelFrame(main_container, text=" Datos de Marca ", padding=10)
-        frame_form.pack(fill=tk.X, pady=(0, 10))
+        frame_form = ctk.CTkFrame(self)
+        frame_form.pack(fill="x", padx=15, pady=(15, 10))
+
+        lbl_titulo = ctk.CTkLabel(
+            frame_form,
+            text="Datos de la Marca",
+            font=("Segoe UI", 12, "bold"),
+        )
+        lbl_titulo.grid(
+            row=0, column=0, columnspan=4, sticky="w", padx=10, pady=(8, 4)
+        )
+
+        ctk.CTkLabel(frame_form, text="Nombre *:").grid(
+            row=1, column=0, padx=(10, 5), pady=10, sticky="w"
+        )
+
+        self.txt_nombre = ctk.CTkEntry(
+            frame_form, placeholder_text="Nombre de la marca"
+        )
+        self.txt_nombre.grid(row=1, column=1, padx=5, pady=10, sticky="ew")
         frame_form.columnconfigure(1, weight=1)
 
-        ttk.Label(frame_form, text="Nombre *:").grid(row=0, column=0, sticky=tk.W, padx=5)
-        self.txt_nombre = ttk.Entry(frame_form)
-        self.txt_nombre.grid(row=0, column=1, sticky=tk.EW, padx=5)
-
-        self.btn_guardar = ttk.Button(
-            frame_form, text="💾 Guardar", command=self.guardar_marca
+        self.btn_guardar = ctk.CTkButton(
+            frame_form, text="💾 Guardar", width=100, command=self.guardar_marca
         )
-        self.btn_guardar.grid(row=0, column=2, padx=5)
+        self.btn_guardar.grid(row=1, column=2, padx=5, pady=10)
 
-        self.btn_limpiar = ttk.Button(
-            frame_form, text="🧹 Nuevo / Cancelar", command=self.limpiar_formulario
+        self.btn_limpiar = ctk.CTkButton(
+            frame_form,
+            text="🧹 Cancelar",
+            width=100,
+            fg_color="#555555",
+            hover_color="#333333",
+            command=self.limpiar_formulario,
         )
-        self.btn_limpiar.grid(row=0, column=3, padx=5)
+        self.btn_limpiar.grid(row=1, column=3, padx=(5, 10), pady=10)
 
         # --- SECCIÓN 2: BUSCADOR ---
-        frame_buscar = ttk.Frame(main_container)
-        frame_buscar.pack(fill=tk.X, pady=(0, 10))
-        frame_buscar.columnconfigure(1, weight=1)
+        frame_buscar = ctk.CTkFrame(self, fg_color="transparent")
+        frame_buscar.pack(fill="x", padx=15, pady=(0, 10))
 
-        ttk.Label(frame_buscar, text="🔍 Buscar:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
-        self.txt_buscar = ttk.Entry(frame_buscar)
-        self.txt_buscar.grid(row=0, column=1, sticky=tk.EW)
+        ctk.CTkLabel(frame_buscar, text="🔍 Buscar:").pack(
+            side="left", padx=(0, 5)
+        )
+
+        self.txt_buscar = ctk.CTkEntry(
+            frame_buscar, placeholder_text="Filtrar por nombre..."
+        )
+        self.txt_buscar.pack(side="left", fill="x", expand=True)
 
         # --- SECCIÓN 3: TABLA (TREEVIEW) ---
-        frame_tabla = ttk.Frame(main_container)
-        frame_tabla.pack(fill=tk.BOTH, expand=True)
+        frame_tabla = ctk.CTkFrame(self)
+        frame_tabla.pack(fill="both", expand=True, padx=15, pady=(0, 10))
 
         columns = ("id", "nombre")
         self.tree = ttk.Treeview(
@@ -79,47 +140,63 @@ class AdminMarcas(tk.Toplevel):
         self.tree.heading("id", text="ID")
         self.tree.heading("nombre", text="Nombre de la Marca")
 
-        self.tree.column("id", width=60, anchor=tk.CENTER)
-        self.tree.column("nombre", width=380, anchor=tk.W)
+        self.tree.column("id", width=60, anchor="center")
+        self.tree.column("nombre", width=420, anchor="w")
 
         scrollbar = ttk.Scrollbar(
-            frame_tabla, orient=tk.VERTICAL, command=self.tree.yview
+            frame_tabla, orient="vertical", command=self.tree.yview
         )
         self.tree.configure(yscrollcommand=scrollbar.set)
 
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
         # Eventos del Treeview
         self.tree.bind("<Double-1>", self.al_doble_clic)
 
         # --- SECCIÓN 4: BOTONES DE ACCIÓN (TABLA) ---
-        frame_acciones = ttk.Frame(main_container)
-        frame_acciones.pack(fill=tk.X, pady=(10, 0))
+        frame_acciones = ctk.CTkFrame(self, fg_color="transparent")
+        frame_acciones.pack(fill="x", padx=15, pady=(0, 15))
 
-        btn_editar = ttk.Button(
-            frame_acciones, text="✏️ Editar Seleccionado", command=self.cargar_para_editar
+        self.btn_editar = ctk.CTkButton(
+            frame_acciones,
+            text="✏️ Editar",
+            width=100,
+            command=self.cargar_para_editar,
         )
-        btn_editar.pack(side=tk.LEFT, padx=(0, 5))
+        self.btn_editar.pack(side="left", padx=(0, 5))
 
-        btn_eliminar = ttk.Button(
-            frame_acciones, text="🗑️ Eliminar", command=self.eliminar_marca
+        self.btn_eliminar = ctk.CTkButton(
+            frame_acciones,
+            text="🗑️ Eliminar",
+            width=100,
+            fg_color="#D32F2F",
+            hover_color="#C62828",
+            command=self.eliminar_marca,
         )
-        btn_eliminar.pack(side=tk.LEFT)
+        self.btn_eliminar.pack(side="left")
 
-        btn_cerrar = ttk.Button(
-            frame_acciones, text="Cerrar", command=self.destroy
+        btn_cerrar = ctk.CTkButton(
+            frame_acciones,
+            text="Cerrar",
+            width=90,
+            fg_color="#555555",
+            hover_color="#333333",
+            command=self.destroy,
         )
-        btn_cerrar.pack(side=tk.RIGHT)
+        btn_cerrar.pack(side="right")
 
     # ==========================================================
     # LÓGICA DE DATOS
     # ==========================================================
     def cargar_marcas(self, lista_datos=None):
         """Limpia y llena el Treeview con marcas."""
-        self.tree.delete(*self.tree.get_children())
+        for fila in self.tree.get_children():
+            self.tree.delete(fila)
 
-        registros = lista_datos if lista_datos is not None else Marca.obtener_todas()
+        registros = (
+            lista_datos if lista_datos is not None else Marca.obtener_todas()
+        )
 
         for m in registros:
             self.tree.insert("", tk.END, values=(m["id"], m["nombre"]))
@@ -144,30 +221,32 @@ class AdminMarcas(tk.Toplevel):
 
         try:
             if self.id_seleccionado:
-                # Actualizar existente
                 Marca.actualizar(self.id_seleccionado, nombre)
                 messagebox.showinfo(
                     "Éxito", "Marca actualizada correctamente.", parent=self
                 )
             else:
-                # Agregar nueva
-                Marca.agregar(nombre)
+                nuevo_id = Marca.agregar(nombre)
                 messagebox.showinfo(
                     "Éxito", "Marca creada correctamente.", parent=self
                 )
 
-            # Si viene invocada como modal desde NuevoProducto, notifica y cierra
-            if self.al_seleccionar_callback:
-                self.al_seleccionar_callback(nombre)
-                self.destroy()
-                return
+                # Si viene invocada como modal desde otro formulario, notifica dict completo y cierra
+                if self.al_seleccionar_callback:
+                    self.al_seleccionar_callback(
+                        {"id": nuevo_id, "nombre": nombre}
+                    )
+                    self.destroy()
+                    return
 
             self.limpiar_formulario()
             self.cargar_marcas()
 
         except Exception as e:
             messagebox.showerror(
-                "Error de BD", f"No se pudo guardar la marca:\n{e}", parent=self
+                "Error de BD",
+                f"No se pudo guardar la marca:\n{e}",
+                parent=self,
             )
 
     def cargar_para_editar(self):
@@ -175,7 +254,9 @@ class AdminMarcas(tk.Toplevel):
         seleccion = self.tree.selection()
         if not seleccion:
             messagebox.showwarning(
-                "Atención", "Seleccione una marca de la lista para editar.", parent=self
+                "Atención",
+                "Seleccione una marca de la lista para editar.",
+                parent=self,
             )
             return
 
@@ -185,19 +266,34 @@ class AdminMarcas(tk.Toplevel):
         self.txt_nombre.delete(0, tk.END)
         self.txt_nombre.insert(0, valores[1])
 
-        self.btn_guardar.config(text="💾 Actualizar")
+        self.btn_guardar.configure(text="💾 Actualizar")
         self.txt_nombre.focus_set()
 
     def al_doble_clic(self, event):
         """Manejador para el evento doble clic sobre la fila."""
-        self.cargar_para_editar()
+        seleccion = self.tree.selection()
+        if not seleccion:
+            return
+
+        valores = self.tree.item(seleccion[0], "values")
+
+        # Si viene con callback modal, el doble clic selecciona la marca y cierra
+        if self.al_seleccionar_callback:
+            self.al_seleccionar_callback(
+                {"id": valores[0], "nombre": valores[1]}
+            )
+            self.destroy()
+        else:
+            self.cargar_para_editar()
 
     def eliminar_marca(self):
         """Elimina la marca seleccionada previa confirmación."""
         seleccion = self.tree.selection()
         if not seleccion:
             messagebox.showwarning(
-                "Atención", "Seleccione una marca para eliminar.", parent=self
+                "Atención",
+                "Seleccione una marca para eliminar.",
+                parent=self,
             )
             return
 
@@ -230,4 +326,4 @@ class AdminMarcas(tk.Toplevel):
         """Restablece los campos de entrada."""
         self.id_seleccionado = None
         self.txt_nombre.delete(0, tk.END)
-        self.btn_guardar.config(text="💾 Guardar")
+        self.btn_guardar.configure(text="💾 Guardar")
