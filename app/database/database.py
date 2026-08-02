@@ -1,38 +1,87 @@
 import sqlite3
+import sys
 from pathlib import Path
 
-# Carpeta donde está instalado el programa
-BASE_DIR = Path(__file__).resolve().parent
+if getattr(sys, "frozen", False):
+    # Cuando corre como EXE
+    BASE_DIR = Path(sys.executable).parent
+else:
+    # Cuando corre con Python en desarrollo
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-DB_FOLDER = BASE_DIR
+DB_FOLDER = BASE_DIR / "datos"
 DB_FILE = DB_FOLDER / "abarrotes.db"
+
 
 def conectar():
     """Abre y retorna una conexión a la base de datos SQLite."""
     DB_FOLDER.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_FILE)
+    # Habilitar llaves foráneas explícitamente en SQLite
+    conn.execute("PRAGMA foreign_keys = ON;")
     conn.row_factory = sqlite3.Row  # Permite acceder a columnas por nombre
     return conn
+
 
 def inicializar_bd():
     """Crea las tablas necesarias si no existen."""
     conn = conectar()
     cursor = conn.cursor()
 
-    # 1. Tabla de Productos
+    # 1. Tabla Categorías
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS categorias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT UNIQUE NOT NULL
+        )
+    """)
+
+    # 2. Tabla Marcas
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS marcas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT UNIQUE NOT NULL
+        )
+    """)
+
+    # 3. Tabla Proveedores
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS proveedores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT UNIQUE NOT NULL,
+            telefono TEXT,
+            contacto TEXT
+        )
+    """)
+
+    # 4. Tabla Productos
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS productos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             codigo TEXT UNIQUE NOT NULL,
+            codigo_barras TEXT,
             nombre TEXT NOT NULL,
+
+            categoria_id INTEGER,
+            marca_id INTEGER,
+            proveedor_id INTEGER,
+
+            precio_compra REAL DEFAULT 0,
             precio_venta REAL NOT NULL,
-            stock REAL DEFAULT 0,
+
+            existencia REAL DEFAULT 0,
+            stock_minimo REAL DEFAULT 0,
+
             unidad TEXT DEFAULT 'PZA',
-            activo INTEGER DEFAULT 1
+            activo INTEGER DEFAULT 1,
+
+            FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE SET NULL,
+            FOREIGN KEY (marca_id) REFERENCES marcas(id) ON DELETE SET NULL,
+            FOREIGN KEY (proveedor_id) REFERENCES proveedores(id) ON DELETE SET NULL
         )
     """)
 
-    # 2. Tabla Encabezado de Ventas
+    # 5. Tabla Encabezado de Ventas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ventas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +94,7 @@ def inicializar_bd():
         )
     """)
 
-    # 3. Tabla Detalle de Ventas
+    # 6. Tabla Detalle de Ventas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS detalle_ventas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,7 +103,7 @@ def inicializar_bd():
             cantidad REAL NOT NULL,
             precio_unitario REAL NOT NULL,
             subtotal REAL NOT NULL,
-            FOREIGN KEY (venta_id) REFERENCES ventas(id),
+            FOREIGN KEY (venta_id) REFERENCES ventas(id) ON DELETE CASCADE,
             FOREIGN KEY (producto_id) REFERENCES productos(id)
         )
     """)
@@ -62,7 +111,7 @@ def inicializar_bd():
     conn.commit()
     conn.close()
 
-# Ejecutar inicialización si se ejecuta directamente este archivo
+
 if __name__ == "__main__":
     inicializar_bd()
     print("¡Base de datos e inicialización de tablas listas!")

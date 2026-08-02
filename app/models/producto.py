@@ -1,11 +1,19 @@
 import sqlite3
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "database" / "abarrotes.db"
+import sys
 
+if getattr(sys, 'frozen', False):
+    BASE_DIR = Path(sys.executable).parent
+else:
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+DB_PATH = BASE_DIR / "datos" / "abarrotes.db"
 
 def obtener_conexion():
+
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
     conexion = sqlite3.connect(
         DB_PATH, timeout=30, check_same_thread=False
     )
@@ -16,7 +24,6 @@ def obtener_conexion():
     conexion.execute("PRAGMA journal_mode=WAL")
 
     return conexion
-
 
 class Producto:
 
