@@ -6,8 +6,15 @@ DB_PATH = BASE_DIR / "database" / "abarrotes.db"
 
 
 def obtener_conexion():
-    conexion = sqlite3.connect(DB_PATH)
+    conexion = sqlite3.connect(
+        DB_PATH, timeout=30, check_same_thread=False
+    )
+
     conexion.row_factory = sqlite3.Row
+
+    conexion.execute("PRAGMA foreign_keys = ON")
+    conexion.execute("PRAGMA journal_mode=WAL")
+
     return conexion
 
 
@@ -27,7 +34,7 @@ class Producto:
         precio_venta,
         existencia,
         stock_minimo,
-        activo=1
+        activo=1,
     ):
         self.codigo = codigo
         self.codigo_barras = codigo_barras
@@ -46,51 +53,52 @@ class Producto:
     # =====================================================
     # GUARDAR
     # =====================================================
-
     def guardar(self):
         conexion = obtener_conexion()
-        cursor = conexion.cursor()
-
-        cursor.execute("""
-            INSERT INTO productos(
-                codigo,
-                codigo_barras,
-                nombre,
-                categoria_id,
-                marca_id,
-                proveedor_id,
-                unidad,
-                tipo_venta,
-                precio_compra,
-                precio_venta,
-                existencia,
-                stock_minimo,
-                activo
+        try:
+            cursor = conexion.cursor()
+            cursor.execute(
+                """
+                INSERT INTO productos(
+                    codigo,
+                    codigo_barras,
+                    nombre,
+                    categoria_id,
+                    marca_id,
+                    proveedor_id,
+                    unidad,
+                    tipo_venta,
+                    precio_compra,
+                    precio_venta,
+                    existencia,
+                    stock_minimo,
+                    activo
+                )
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+                (
+                    self.codigo,
+                    self.codigo_barras,
+                    self.nombre,
+                    self.categoria_id,
+                    self.marca_id,
+                    self.proveedor_id,
+                    self.unidad,
+                    self.tipo_venta,
+                    self.precio_compra,
+                    self.precio_venta,
+                    self.existencia,
+                    self.stock_minimo,
+                    self.activo,
+                ),
             )
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
-        """, (
-            self.codigo,
-            self.codigo_barras,
-            self.nombre,
-            self.categoria_id,
-            self.marca_id,
-            self.proveedor_id,
-            self.unidad,
-            self.tipo_venta,
-            self.precio_compra,
-            self.precio_venta,
-            self.existencia,
-            self.stock_minimo,
-            self.activo
-        ))
-
-        conexion.commit()
-        conexion.close()
+            conexion.commit()
+        finally:
+            conexion.close()
 
     # =====================================================
     # ACTUALIZAR
     # =====================================================
-
     @staticmethod
     def actualizar(
         codigo_original,
@@ -106,48 +114,53 @@ class Producto:
         precio_venta,
         existencia,
         stock_minimo,
-        activo=1
+        activo=1,
     ):
         conexion = obtener_conexion()
-        cursor = conexion.cursor()
-
-        cursor.execute("""
-            UPDATE productos
-            SET
-                codigo=?,
-                codigo_barras=?,
-                nombre=?,
-                categoria_id=?,
-                marca_id=?,
-                proveedor_id=?,
-                unidad=?,
-                tipo_venta=?,
-                precio_compra=?,
-                precio_venta=?,
-                existencia=?,
-                stock_minimo=?,
-                activo=?,
-                fecha_actualizacion=CURRENT_TIMESTAMP
-            WHERE codigo=?
-        """, (
-            codigo,
-            codigo_barras,
-            nombre,
-            categoria_id,
-            marca_id,
-            proveedor_id,
-            unidad,
-            tipo_venta,
-            precio_compra,
-            precio_venta,
-            existencia,
-            stock_minimo,
-            activo,
-            codigo_original
-        ))
-
-        conexion.commit()
-        conexion.close()
+        try:
+            # 'with conexion' maneja automáticamente el commit (o rollback si falla)
+            with conexion:
+                cursor = conexion.cursor()
+                cursor.execute(
+                    """
+                    UPDATE productos
+                    SET
+                        codigo=?,
+                        codigo_barras=?,
+                        nombre=?,
+                        categoria_id=?,
+                        marca_id=?,
+                        proveedor_id=?,
+                        unidad=?,
+                        tipo_venta=?,
+                        precio_compra=?,
+                        precio_venta=?,
+                        existencia=?,
+                        stock_minimo=?,
+                        activo=?,
+                        fecha_actualizacion=CURRENT_TIMESTAMP
+                    WHERE codigo=?
+                """,
+                    (
+                        codigo,
+                        codigo_barras,
+                        nombre,
+                        categoria_id,
+                        marca_id,
+                        proveedor_id,
+                        unidad,
+                        tipo_venta,
+                        precio_compra,
+                        precio_venta,
+                        existencia,
+                        stock_minimo,
+                        activo,
+                        codigo_original,
+                    ),
+                )
+        finally:
+            # Garantiza el cierre explícito del socket/conexión
+            conexion.close()
 
     # =====================================================
     # INVENTARIO / STOCK
@@ -169,10 +182,12 @@ class Producto:
             cursor_externo.execute(sql, (cantidad, codigo))
         else:
             conexion = obtener_conexion()
-            cursor = conexion.cursor()
-            cursor.execute(sql, (cantidad, codigo))
-            conexion.commit()
-            conexion.close()
+            try:
+                cursor = conexion.cursor()
+                cursor.execute(sql, (cantidad, codigo))
+                conexion.commit()
+            finally:
+                conexion.close()
 
     @staticmethod
     def devolver_stock(codigo, cantidad, cursor_externo=None):
@@ -189,10 +204,12 @@ class Producto:
             cursor_externo.execute(sql, (cantidad, codigo))
         else:
             conexion = obtener_conexion()
-            cursor = conexion.cursor()
-            cursor.execute(sql, (cantidad, codigo))
-            conexion.commit()
-            conexion.close()
+            try:
+                cursor = conexion.cursor()
+                cursor.execute(sql, (cantidad, codigo))
+                conexion.commit()
+            finally:
+                conexion.close()
 
     # =====================================================
     # BUSCAR POR CODIGO
@@ -201,19 +218,23 @@ class Producto:
     @staticmethod
     def buscar_por_codigo(codigo):
         conexion = obtener_conexion()
-        cursor = conexion.cursor()
+        try:
+            cursor = conexion.cursor()
 
-        cursor.execute("""
-            SELECT *
-            FROM productos
-            WHERE codigo=?
-               OR codigo_barras=?
-        """, (codigo, codigo))
+            cursor.execute(
+                """
+                SELECT *
+                FROM productos
+                WHERE codigo=?
+                   OR codigo_barras=?
+            """,
+                (codigo, codigo),
+            )
 
-        producto = cursor.fetchone()
-        conexion.close()
-
-        return producto
+            producto = cursor.fetchone()
+            return producto
+        finally:
+            conexion.close()
 
     # =====================================================
     # OBTENER TODOS
@@ -222,23 +243,30 @@ class Producto:
     @staticmethod
     def obtener_todos(incluir_desactivados=False):
         conexion = obtener_conexion()
-        cursor = conexion.cursor()
+        try:
+            cursor = conexion.cursor()
 
-        sql = """
-            SELECT *
-            FROM productos
-        """
+            sql = """
+                SELECT 
+                    p.*,
+                    c.nombre AS categoria,
+                    m.nombre AS marca,
+                    pr.nombre AS proveedor
+                FROM productos p
+                LEFT JOIN categorias c ON p.categoria_id = c.id
+                LEFT JOIN marcas m ON p.marca_id = m.id
+                LEFT JOIN proveedores pr ON p.proveedor_id = pr.id
+            """
 
-        if not incluir_desactivados:
-            sql += " WHERE activo=1"
+            if not incluir_desactivados:
+                sql += " WHERE p.activo=1"
 
-        sql += " ORDER BY nombre"
+            sql += " ORDER BY p.nombre"
 
-        cursor.execute(sql)
-        datos = cursor.fetchall()
-        conexion.close()
-
-        return datos
+            cursor.execute(sql)
+            return cursor.fetchall()
+        finally:
+            conexion.close()
 
     # =====================================================
     # BUSCAR
@@ -247,36 +275,35 @@ class Producto:
     @staticmethod
     def buscar(texto, incluir_desactivados=False):
         conexion = obtener_conexion()
-        cursor = conexion.cursor()
+        try:
+            cursor = conexion.cursor()
 
-        sql = """
-            SELECT *
-            FROM productos
-            WHERE
-            (
-                codigo LIKE ?
-                OR codigo_barras LIKE ?
-                OR nombre LIKE ?
+            sql = """
+                SELECT *
+                FROM productos
+                WHERE
+                (
+                    codigo LIKE ?
+                    OR codigo_barras LIKE ?
+                    OR nombre LIKE ?
+                )
+            """
+
+            if not incluir_desactivados:
+                sql += " AND activo=1"
+
+            sql += " ORDER BY nombre"
+
+            parametro = f"%{texto}%"
+
+            cursor.execute(
+                sql, (parametro, parametro, parametro)
             )
-        """
 
-        if not incluir_desactivados:
-            sql += " AND activo=1"
-
-        sql += " ORDER BY nombre"
-
-        parametro = f"%{texto}%"
-
-        cursor.execute(sql, (
-            parametro,
-            parametro,
-            parametro
-        ))
-
-        datos = cursor.fetchall()
-        conexion.close()
-
-        return datos
+            datos = cursor.fetchall()
+            return datos
+        finally:
+            conexion.close()
 
     # =====================================================
     # ACTIVAR / DESACTIVAR
@@ -285,19 +312,21 @@ class Producto:
     @staticmethod
     def cambiar_estado(codigo, estado):
         conexion = obtener_conexion()
-        cursor = conexion.cursor()
+        try:
+            cursor = conexion.cursor()
 
-        cursor.execute("""
-            UPDATE productos
-            SET activo=?
-            WHERE codigo=?
-        """, (
-            estado,
-            codigo
-        ))
+            cursor.execute(
+                """
+                UPDATE productos
+                SET activo=?
+                WHERE codigo=?
+            """,
+                (estado, codigo),
+            )
 
-        conexion.commit()
-        conexion.close()
+            conexion.commit()
+        finally:
+            conexion.close()
 
     @staticmethod
     def desactivar(codigo):
@@ -314,35 +343,37 @@ class Producto:
     @staticmethod
     def contar_productos():
         conexion = obtener_conexion()
-        cursor = conexion.cursor()
+        try:
+            cursor = conexion.cursor()
 
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM productos
-            WHERE activo=1
-        """)
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM productos
+                WHERE activo=1
+            """)
 
-        total = cursor.fetchone()[0]
-        conexion.close()
-
-        return total
+            total = cursor.fetchone()[0]
+            return total
+        finally:
+            conexion.close()
 
     @staticmethod
     def contar_stock_bajo():
         conexion = obtener_conexion()
-        cursor = conexion.cursor()
+        try:
+            cursor = conexion.cursor()
 
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM productos
-            WHERE activo=1
-            AND existencia<=stock_minimo
-        """)
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM productos
+                WHERE activo=1
+                AND existencia<=stock_minimo
+            """)
 
-        total = cursor.fetchone()[0]
-        conexion.close()
-
-        return total
+            total = cursor.fetchone()[0]
+            return total
+        finally:
+            conexion.close()
 
     # =====================================================
     # EXPORTAR / IMPORTAR
@@ -355,26 +386,31 @@ class Producto:
     @staticmethod
     def importar_desde_lista(lista):
         conexion = obtener_conexion()
-        cursor = conexion.cursor()
+        try:
+            cursor = conexion.cursor()
 
-        cursor.executemany("""
-            INSERT OR REPLACE INTO productos(
-                codigo,
-                codigo_barras,
-                nombre,
-                categoria_id,
-                marca_id,
-                proveedor_id,
-                unidad,
-                tipo_venta,
-                precio_compra,
-                precio_venta,
-                existencia,
-                stock_minimo,
-                activo
+            cursor.executemany(
+                """
+                INSERT OR REPLACE INTO productos(
+                    codigo,
+                    codigo_barras,
+                    nombre,
+                    categoria_id,
+                    marca_id,
+                    proveedor_id,
+                    unidad,
+                    tipo_venta,
+                    precio_compra,
+                    precio_venta,
+                    existencia,
+                    stock_minimo,
+                    activo
+                )
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+                lista,
             )
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
-        """, lista)
 
-        conexion.commit()
-        conexion.close()
+            conexion.commit()
+        finally:
+            conexion.close()

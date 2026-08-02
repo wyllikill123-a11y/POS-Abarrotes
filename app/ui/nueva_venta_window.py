@@ -573,71 +573,83 @@ class NuevaVentaWindow(ctk.CTkToplevel):
             self.btn_cobrar.configure(state="disabled")
 
     def cobrar(self):
-        if not self.carrito:
-            messagebox.showwarning("Venta Vacía", "No hay productos en el carrito para procesar.")
-            return
-
-        total_venta = sum(item["subtotal"] for item in self.carrito.values())
-        metodo = self.metodo_pago.get()
-
-        monto_recibido = total_venta
-        cambio = 0.0
-
-        if metodo == "EFECTIVO":
-            dialogo = CobroEfectivoDialog(self, total_venta)
-            self.wait_window(dialogo)
-
-            if not dialogo.confirmado:
-                self.after(100, lambda: self.txt_buscar.focus())
+            if not self.carrito:
+                messagebox.showwarning("Venta Vacía", "No hay productos en el carrito para procesar.")
                 return
 
-            monto_recibido = dialogo.monto_recibido
-            cambio = dialogo.cambio
-        else:
-            if not messagebox.askyesno("Confirmar Cobro", f"¿Confirmar cobro de ${total_venta:.2f} con {metodo}?"):
-                self.after(100, lambda: self.txt_buscar.focus())
-                return
+            total_venta = sum(item["subtotal"] for item in self.carrito.values())
+            metodo = self.metodo_pago.get()
 
-        try:
-            items_carrito = list(self.carrito.values())
+            monto_recibido = total_venta
+            cambio = 0.0
 
-            venta_id = Venta.registrar_venta(
-                carrito=items_carrito,
-                metodo_pago=metodo,
-                descuento=0,
-                monto_recibido=monto_recibido,
-                cambio=cambio
-            )
+            if metodo == "EFECTIVO":
+                dialogo = CobroEfectivoDialog(self, total_venta)
+                self.wait_window(dialogo)
 
-            self.carrito.clear()
-            self.actualizar_tabla()
-            self.txt_buscar.delete(0, "end")
+                if not dialogo.confirmado:
+                    if self.winfo_exists():
+                        self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
+                    return
 
-            if hasattr(self.master, 'dashboard') and hasattr(self.master.dashboard, 'actualizar'):
-                self.master.dashboard.actualizar()
+                monto_recibido = dialogo.monto_recibido
+                cambio = dialogo.cambio
+            else:
+                if not messagebox.askyesno("Confirmar Cobro", f"¿Confirmar cobro de ${total_venta:.2f} con {metodo}?"):
+                    if self.winfo_exists():
+                        self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
+                    return
 
-          # Instanciar pasando también el parámetro 'carrito'
-            dlg_exito = VentaExitosaDialog(
-                self, 
-                venta_id=venta_id, 
-                carrito=items_carrito,  # <--- AGREGAR ESTA LÍNEA
-                total=total_venta, 
-                recibido=monto_recibido, 
-                cambio=cambio, 
-                metodo=metodo
-            )
-            self.wait_window(dlg_exito)
-            
-            self.metodo_pago.set("EFECTIVO")
-            self.after(100, lambda: self.txt_buscar.focus())
+            try:
+                items_carrito = list(self.carrito.values())
 
-        except ValueError as err_val:
-            messagebox.showwarning("Atención", str(err_val))
-            self.after(100, lambda: self.txt_buscar.focus())
+                venta_id = Venta.registrar_venta(
+                    carrito=items_carrito,
+                    metodo_pago=metodo,
+                    descuento=0,
+                    monto_recibido=monto_recibido,
+                    cambio=cambio
+                )
 
-        except Exception as err:
-                    import traceback
-                    print("ERROR DETALLADO EN REGISTRAR VENTA:")
-                    traceback.print_exc()  # Esto imprimirá la falla exacta en la consola
-                    messagebox.showerror("Error al Registrar Venta", f"Detalle del error:\n{str(err)}")
-                    self.after(100, lambda: self.txt_buscar.focus())
+                self.carrito.clear()
+                self.actualizar_tabla()
+                
+                if hasattr(self, 'txt_buscar') and self.txt_buscar.winfo_exists():
+                    self.txt_buscar.delete(0, "end")
+
+                if hasattr(self.master, 'dashboard') and hasattr(self.master.dashboard, 'actualizar'):
+                    self.master.dashboard.actualizar()
+
+                # Instanciar pasando el parámetro 'carrito'
+                dlg_exito = VentaExitosaDialog(
+                    self, 
+                    venta_id=venta_id, 
+                    carrito=items_carrito,
+                    total=total_venta, 
+                    recibido=monto_recibido, 
+                    cambio=cambio, 
+                    metodo=metodo
+                )
+                self.wait_window(dlg_exito)
+                
+                # ✅ VERIFICACIÓN DE SEGURIDAD: Solo resetear si la ventana sigue existiendo
+                if self.winfo_exists():
+                    try:
+                        self.metodo_pago.set("EFECTIVO")
+                    except Exception:
+                        pass
+                    
+                    self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
+
+            except ValueError as err_val:
+                messagebox.showwarning("Atención", str(err_val))
+                if self.winfo_exists():
+                    self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
+
+            except Exception as err:
+                import traceback
+                print("ERROR DETALLADO EN REGISTRAR VENTA:")
+                traceback.print_exc()
+                messagebox.showerror("Error al Registrar Venta", f"Detalle del error:\n{str(err)}")
+                if self.winfo_exists():
+                    self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)

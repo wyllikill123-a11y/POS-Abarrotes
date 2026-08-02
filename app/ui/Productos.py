@@ -1,319 +1,351 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
+import sqlite3
+from pathlib import Path
 
-from app.models.producto import Producto
-from app.ui.nuevo_producto import NuevoProducto
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_PATH = BASE_DIR / "database" / "abarrotes.db"
 
 
-class VistaProductos(ttk.Frame):
+def obtener_conexion():
+    conexion = sqlite3.connect(
+        DB_PATH, timeout=30, check_same_thread=False
+    )
+    conexion.row_factory = sqlite3.Row
+    conexion.execute("PRAGMA foreign_keys = ON")
+    conexion.execute("PRAGMA journal_mode=WAL")
+    return conexion
 
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.pack(fill=tk.BOTH, expand=True)
 
-        self.crear_widgets()
-        self.cargar_productos()
+class Producto:
 
-    # ==========================================================
-    # INTERFAZ
-    # ==========================================================
-    def crear_widgets(self):
+    def __init__(
+        self,
+        codigo,
+        codigo_barras,
+        nombre,
+        categoria_id,
+        marca_id,
+        proveedor_id,
+        unidad,
+        tipo_venta,
+        precio_compra,
+        precio_venta,
+        existencia,
+        stock_minimo,
+        activo=1,
+    ):
+        self.codigo = codigo
+        self.codigo_barras = codigo_barras
+        self.nombre = nombre
+        self.categoria_id = categoria_id
+        self.marca_id = marca_id
+        self.proveedor_id = proveedor_id
+        self.unidad = unidad
+        self.tipo_venta = tipo_venta
+        self.precio_compra = precio_compra
+        self.precio_venta = precio_venta
+        self.existencia = existencia
+        self.stock_minimo = stock_minimo
+        self.activo = activo
 
-        frame_superior = ttk.Frame(self, padding=10)
-        frame_superior.pack(fill=tk.X)
-
-        ttk.Label(frame_superior, text="Buscar:").pack(side=tk.LEFT, padx=(0, 5))
-
-        self.txt_buscar = ttk.Entry(frame_superior, width=30)
-        self.txt_buscar.pack(side=tk.LEFT, padx=5)
-        self.txt_buscar.bind("<KeyRelease>", self.filtrar_productos)
-        # Mostrar desactivados
-        self.mostrar_desactivados = tk.BooleanVar(value=False)
-
-        chk_desactivados = ttk.Checkbutton(
-            frame_superior,
-            text="Mostrar productos desactivados",
-            variable=self.mostrar_desactivados,
-            command=self.cargar_productos
-        )
-
-        chk_desactivados.pack(side=tk.LEFT, padx=15)
-
-        ttk.Button(
-            frame_superior,
-            text="Nuevo Producto",
-            command=self.abrir_nuevo
-        ).pack(side=tk.LEFT, padx=5)
-
-        ttk.Button(
-            frame_superior,
-            text="Editar",
-            command=self.abrir_editar
-        ).pack(side=tk.LEFT, padx=5)
-
-        ttk.Button(
-            frame_superior,
-            text="Activar / Desactivar",
-            command=self.cambiar_estado_producto
-        ).pack(side=tk.LEFT, padx=5)
-
-        columnas = (
-            "codigo",
-            "codigo_barras",
-            "nombre",
-            "unidad",
-            "tipo_venta",
-            "precio_compra",
-            "precio_venta",
-            "existencia",
-            "stock_minimo",
-            "categoria",
-            "activo",
-        )
-
-        self.tabla = ttk.Treeview(
-            self,
-            columns=columnas,
-            show="headings",
-            selectmode="browse"
-        )
-
-        self.tabla.tag_configure(
-            "desactivado",
-            foreground="gray"
-        )
-
-        encabezados = (
-            "Código",
-            "C. Barras",
-            "Nombre",
-            "Unidad",
-            "Tipo Venta",
-            "P. Compra",
-            "P. Venta",
-            "Existencia",
-            "Stock Mín.",
-            "Categoría",
-            "Activo"
-        )
-
-        for columna, titulo in zip(columnas, encabezados):
-            self.tabla.heading(columna, text=titulo)
-            self.tabla.column(columna, width=100, anchor=tk.CENTER)
-
-        self.tabla.column("nombre", width=180, anchor=tk.W)
-        self.tabla.column("codigo", width=90)
-
-        scrollbar = ttk.Scrollbar(
-            self,
-            orient=tk.VERTICAL,
-            command=self.tabla.yview
-        )
-
-        self.tabla.configure(yscrollcommand=scrollbar.set)
-
-        self.tabla.pack(
-            side=tk.LEFT,
-            fill=tk.BOTH,
-            expand=True,
-            padx=(10, 0),
-            pady=10
-        )
-
-        scrollbar.pack(
-            side=tk.RIGHT,
-            fill=tk.Y,
-            padx=(0, 10),
-            pady=10
-        )
-
-        self.tabla.bind("<Double-1>", lambda e: self.abrir_editar())
-
-    # ==========================================================
-    # CARGAR PRODUCTOS
-    # ==========================================================
-    def cargar_productos(self, texto_busqueda=None):
-
-        for item in self.tabla.get_children():
-            self.tabla.delete(item)
-
-        incluir = self.mostrar_desactivados.get()
-
-        if texto_busqueda:
-            productos = Producto.buscar(
-                texto_busqueda,
-                incluir_desactivados=incluir
-            )
-        else:
-            productos = Producto.obtener_todos(
-                incluir_desactivados=incluir
-            )
-
-        for prod in productos:
-
-            tag = ()
-
-            if prod["activo"] == 0:
-                tag = ("desactivado",)
-
-            self.tabla.insert(
-                "",
-                tk.END,
-                iid=prod["codigo"],
-                values=(
-                    prod["codigo"],
-                    prod["codigo_barras"] or "",
-                    prod["nombre"],
-                    prod["unidad"],
-                    prod["tipo_venta"],
-                    f"${prod['precio_compra']:.2f}",
-                    f"${prod['precio_venta']:.2f}",
-                    prod["existencia"],
-                    prod["stock_minimo"],
-                    prod["categoria_id"],
-                    "Sí" if prod["activo"] else "No",
+    # =====================================================
+    # GUARDAR
+    # =====================================================
+    def guardar(self):
+        with obtener_conexion() as conexion:
+            cursor = conexion.cursor()
+            cursor.execute(
+                """
+                INSERT INTO productos(
+                    codigo, codigo_barras, nombre, categoria_id, marca_id,
+                    proveedor_id, unidad, tipo_venta, precio_compra,
+                    precio_venta, existencia, stock_minimo, activo
+                )
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+                (
+                    self.codigo,
+                    self.codigo_barras,
+                    self.nombre,
+                    self.categoria_id,
+                    self.marca_id,
+                    self.proveedor_id,
+                    self.unidad,
+                    self.tipo_venta,
+                    self.precio_compra,
+                    self.precio_venta,
+                    self.existencia,
+                    self.stock_minimo,
+                    self.activo,
                 ),
-                tags=tag
             )
+            conexion.commit()
 
-    def cambiar_estado_producto(self):
-
-        seleccionado = self.tabla.selection()
-
-        if not seleccionado:
-            messagebox.showwarning(
-                "Atención",
-                "Seleccione un producto."
+    # =====================================================
+    # ACTUALIZAR
+    # =====================================================
+    @staticmethod
+    def actualizar(
+        codigo_original,
+        codigo,
+        codigo_barras,
+        nombre,
+        categoria_id,
+        marca_id,
+        proveedor_id,
+        unidad,
+        tipo_venta,
+        precio_compra,
+        precio_venta,
+        existencia,
+        stock_minimo,
+        activo=1,
+    ):
+        with obtener_conexion() as conexion:
+            cursor = conexion.cursor()
+            cursor.execute(
+                """
+                UPDATE productos
+                SET
+                    codigo=?,
+                    codigo_barras=?,
+                    nombre=?,
+                    categoria_id=?,
+                    marca_id=?,
+                    proveedor_id=?,
+                    unidad=?,
+                    tipo_venta=?,
+                    precio_compra=?,
+                    precio_venta=?,
+                    existencia=?,
+                    stock_minimo=?,
+                    activo=?,
+                    fecha_actualizacion=CURRENT_TIMESTAMP
+                WHERE codigo=?
+            """,
+                (
+                    codigo,
+                    codigo_barras,
+                    nombre,
+                    categoria_id,
+                    marca_id,
+                    proveedor_id,
+                    unidad,
+                    tipo_venta,
+                    precio_compra,
+                    precio_venta,
+                    existencia,
+                    stock_minimo,
+                    activo,
+                    codigo_original,
+                ),
             )
-            return
+            conexion.commit()
 
-        codigo = seleccionado[0]
-
-        producto = Producto.buscar_por_codigo(codigo)
-
-        if not producto:
-            messagebox.showerror(
-                "Error",
-                "No se encontró el producto."
-            )
-            return
-
-        if producto["activo"] == 1:
-            accion = "desactivar"
+    # =====================================================
+    # INVENTARIO / STOCK
+    # =====================================================
+    @staticmethod
+    def descontar_stock(codigo, cantidad, cursor_externo=None):
+        sql = """
+            UPDATE productos
+            SET existencia = existencia - ?,
+                fecha_actualizacion = CURRENT_TIMESTAMP
+            WHERE codigo = ?
+        """
+        if cursor_externo:
+            cursor_externo.execute(sql, (cantidad, codigo))
         else:
-            accion = "reactivar"
+            with obtener_conexion() as conexion:
+                cursor = conexion.cursor()
+                cursor.execute(sql, (cantidad, codigo))
+                conexion.commit()
 
-        confirmar = messagebox.askyesno(
-            "Confirmar",
-            f"¿Desea {accion} este producto?"
-        )
-
-        if not confirmar:
-            return
-
-        if producto["activo"] == 1:
-            Producto.desactivar(codigo)
-            mensaje = "Producto desactivado correctamente."
+    @staticmethod
+    def devolver_stock(codigo, cantidad, cursor_externo=None):
+        sql = """
+            UPDATE productos
+            SET existencia = existencia + ?,
+                fecha_actualizacion = CURRENT_TIMESTAMP
+            WHERE codigo = ?
+        """
+        if cursor_externo:
+            cursor_externo.execute(sql, (cantidad, codigo))
         else:
-            Producto.reactivar(codigo)
-            mensaje = "Producto reactivado correctamente."
+            with obtener_conexion() as conexion:
+                cursor = conexion.cursor()
+                cursor.execute(sql, (cantidad, codigo))
+                conexion.commit()
 
-        self.cargar_productos(self.txt_buscar.get().strip() or None)
-
-        messagebox.showinfo(
-            "Correcto",
-            mensaje
-        )
-
-    # ==========================================================
-    # NUEVO PRODUCTO
-    # ==========================================================
-    def abrir_nuevo(self):
-
-        ventana = NuevoProducto(self)
-
-        self.wait_window(ventana)
-
-        self.cargar_productos()
-
-    # ==========================================================
-    # EDITAR
-    # ==========================================================
-    def abrir_editar(self):
-
-        seleccionado = self.tabla.selection()
-
-        if not seleccionado:
-            messagebox.showwarning(
-                "Atención",
-                "Seleccione un producto."
+    # =====================================================
+    # BUSCAR POR CODIGO
+    # =====================================================
+    @staticmethod
+    def buscar_por_codigo(codigo):
+        with obtener_conexion() as conexion:
+            cursor = conexion.cursor()
+            cursor.execute(
+                """
+                SELECT 
+                    p.*,
+                    COALESCE(c.nombre, 'Sin Categoria') AS categoria_nombre,
+                    COALESCE(m.nombre, 'Sin Marca') AS marca_nombre,
+                    COALESCE(pr.nombre, 'Sin Proveedor') AS proveedor_nombre
+                FROM productos p
+                LEFT JOIN categorias c ON p.categoria_id = c.id
+                LEFT JOIN marcas m ON p.marca_id = m.id
+                LEFT JOIN proveedores pr ON p.proveedor_id = pr.id
+                WHERE p.codigo=? OR p.codigo_barras=?
+            """,
+                (codigo, codigo),
             )
-            return
+            return cursor.fetchone()
 
-        codigo = seleccionado[0]
+    # =====================================================
+    # OBTENER TODOS (CON NOMBRES DE CATEGORÍA, MARCA Y PROVEEDOR)
+    # =====================================================
+    @staticmethod
+    def obtener_todos(incluir_desactivados=False):
+        with obtener_conexion() as conexion:
+            cursor = conexion.cursor()
+            sql = """
+                SELECT 
+                    p.*,
+                    COALESCE(c.nombre, 'Sin Categoria') AS categoria_nombre,
+                    COALESCE(m.nombre, 'Sin Marca') AS marca_nombre,
+                    COALESCE(pr.nombre, 'Sin Proveedor') AS proveedor_nombre
+                FROM productos p
+                LEFT JOIN categorias c ON p.categoria_id = c.id
+                LEFT JOIN marcas m ON p.marca_id = m.id
+                LEFT JOIN proveedores pr ON p.proveedor_id = pr.id
+            """
 
-        datos = Producto.buscar_por_codigo(codigo)
+            if not incluir_desactivados:
+                sql += " WHERE p.activo=1"
 
-        if datos:
+            sql += " ORDER BY p.nombre"
 
-            ventana = NuevoProducto(self, datos)
+            cursor.execute(sql)
+            return cursor.fetchall()
 
-            self.wait_window(ventana)
+    # =====================================================
+    # BUSCAR
+    # =====================================================
+    @staticmethod
+    def buscar(texto, incluir_desactivados=False):
+        with obtener_conexion() as conexion:
+            cursor = conexion.cursor()
+            sql = """
+                SELECT 
+                    p.*,
+                    COALESCE(c.nombre, 'Sin Categoria') AS categoria_nombre,
+                    COALESCE(m.nombre, 'Sin Marca') AS marca_nombre,
+                    COALESCE(pr.nombre, 'Sin Proveedor') AS proveedor_nombre
+                FROM productos p
+                LEFT JOIN categorias c ON p.categoria_id = c.id
+                LEFT JOIN marcas m ON p.marca_id = m.id
+                LEFT JOIN proveedores pr ON p.proveedor_id = pr.id
+                WHERE (
+                    p.codigo LIKE ?
+                    OR p.codigo_barras LIKE ?
+                    OR p.nombre LIKE ?
+                    OR c.nombre LIKE ?
+                    OR m.nombre LIKE ?
+                )
+            """
 
-            self.cargar_productos()
+            if not incluir_desactivados:
+                sql += " AND p.activo=1"
 
-    # ==========================================================
+            sql += " ORDER BY p.nombre"
+
+            parametro = f"%{texto}%"
+            cursor.execute(sql, (parametro, parametro, parametro, parametro, parametro))
+            return cursor.fetchall()
+
+    # =====================================================
     # ACTIVAR / DESACTIVAR
-    # ==========================================================
-    def cambiar_estado_producto(self):
-
-        seleccionado = self.tabla.selection()
-
-        if not seleccionado:
-            messagebox.showwarning(
-                "Atención",
-                "Seleccione un producto."
+    # =====================================================
+    @staticmethod
+    def cambiar_estado(codigo, estado):
+        with obtener_conexion() as conexion:
+            cursor = conexion.cursor()
+            cursor.execute(
+                """
+                UPDATE productos
+                SET activo=?
+                WHERE codigo=?
+            """,
+                (estado, codigo),
             )
-            return
+            conexion.commit()
 
-        codigo = seleccionado[0]
+    @staticmethod
+    def desactivar(codigo):
+        Producto.cambiar_estado(codigo, 0)
 
-        producto = Producto.buscar_por_codigo(codigo)
+    @staticmethod
+    def reactivar(codigo):
+        Producto.cambiar_estado(codigo, 1)
 
-        if not producto:
-            messagebox.showerror(
-                "Error",
-                "No se encontró el producto."
-            )
-            return
+    # =====================================================
+    # CONTADORES
+    # =====================================================
+    @staticmethod
+    def contar_productos():
+        with obtener_conexion() as conexion:
+            cursor = conexion.cursor()
+            cursor.execute("""
+                SELECT COUNT(*) FROM productos WHERE activo=1
+            """)
+            return cursor.fetchone()[0]
 
-        if producto["activo"] == 1:
+    @staticmethod
+    def contar_stock_bajo():
+        with obtener_conexion() as conexion:
+            cursor = conexion.cursor()
+            cursor.execute("""
+                SELECT COUNT(*) FROM productos
+                WHERE activo=1 AND existencia<=stock_minimo
+            """)
+            return cursor.fetchone()[0]
 
-            confirmar = messagebox.askyesno(
-                "Confirmar",
-                "¿Desea desactivar este producto?"
-            )
+    # =====================================================
+    # EXPORTAR / IMPORTAR
+    # =====================================================
+    @staticmethod
+    def obtener_todos_para_excel():
+        return Producto.obtener_todos(True)
 
-            if confirmar:
-                Producto.desactivar(codigo)
-                messagebox.showinfo(
-                    "Correcto",
-                    "Producto desactivado."
+    @staticmethod
+    def importar_desde_lista(lista):
+        with obtener_conexion() as conexion:
+            cursor = conexion.cursor()
+            cursor.executemany(
+                """
+                INSERT OR REPLACE INTO productos(
+                    codigo, codigo_barras, nombre, categoria_id, marca_id,
+                    proveedor_id, unidad, tipo_venta, precio_compra,
+                    precio_venta, existencia, stock_minimo, activo
                 )
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+                lista,
+            )
+            conexion.commit()
 
-        else:
+    @staticmethod
+    def existe_codigo(codigo):
+        with obtener_conexion() as conexion:
+            cursor = conexion.cursor()
 
-            confirmar = messagebox.askyesno(
-                "Confirmar",
-                "¿Desea reactivar este producto?"
+            cursor.execute(
+                """
+                SELECT 1
+                FROM productos
+                WHERE codigo=?
+                """,
+                (codigo,),
             )
 
-            if confirmar:
-                Producto.reactivar(codigo)
-                messagebox.showinfo(
-                    "Correcto",
-                    "Producto reactivado."
-                )
-
-        self.cargar_productos()
-        
+            return cursor.fetchone() is not None  
+            
