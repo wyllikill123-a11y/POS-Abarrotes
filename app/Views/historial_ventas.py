@@ -236,22 +236,45 @@ class HistorialVentasWindow(ctk.CTkToplevel):
         suma_total = 0.0
 
         for venta in registros:
+            # Soporta tanto sqlite3.Row / tuplas mapeadas como diccionarios
             v_dict = dict(venta) if hasattr(venta, "keys") else venta
-            subtotal = f"${v_dict['subtotal']:.2f}"
-            descuento = f"${v_dict['descuento']:.2f}"
-            total = f"${v_dict['total']:.2f}"
-            suma_total += float(v_dict["total"])
+
+            # Extraer valores numéricos de forma segura
+            raw_total = v_dict.get("total", 0.0) or 0.0
+            raw_subtotal = v_dict.get("subtotal", raw_total) or 0.0
+            raw_descuento = v_dict.get("descuento", 0.0) or 0.0
+
+            try:
+                val_total = float(raw_total)
+            except (ValueError, TypeError):
+                val_total = 0.0
+
+            try:
+                val_subtotal = float(raw_subtotal)
+            except (ValueError, TypeError):
+                val_subtotal = 0.0
+
+            try:
+                val_descuento = float(raw_descuento)
+            except (ValueError, TypeError):
+                val_descuento = 0.0
+
+            subtotal_str = f"${val_subtotal:.2f}"
+            descuento_str = f"${val_descuento:.2f}"
+            total_str = f"${val_total:.2f}"
+
+            suma_total += val_total
 
             self.tabla.insert(
                 "",
                 "end",
                 values=(
-                    v_dict["id"],
-                    v_dict["fecha"],
-                    v_dict["metodo_pago"],
-                    subtotal,
-                    descuento,
-                    total,
+                    v_dict.get("id", ""),
+                    v_dict.get("fecha", ""),
+                    v_dict.get("metodo_pago", "Efectivo"),
+                    subtotal_str,
+                    descuento_str,
+                    total_str,
                 ),
             )
 
@@ -340,8 +363,8 @@ class HistorialVentasWindow(ctk.CTkToplevel):
         lbl_info = ctk.CTkLabel(
             dialogo,
             text=(
-                f"Folio: #{venta['id']}  |  Fecha: {venta['fecha']}\n"
-                f"Método de Pago: {venta['metodo_pago']}"
+                f"Folio: #{venta.get('id', '')}  |  Fecha: {venta.get('fecha', '')}\n"
+                f"Método de Pago: {venta.get('metodo_pago', 'Efectivo')}"
             ),
             font=ctk.CTkFont(size=14, weight="bold"),
         )
@@ -366,28 +389,35 @@ class HistorialVentasWindow(ctk.CTkToplevel):
         for item in detalles:
             item_dict = dict(item) if hasattr(item, "keys") else item
             unidad = item_dict.get("unidad", "")
-            texto_cantidad = f"{item_dict['cantidad']} {unidad}".strip()
+            texto_cantidad = f"{item_dict.get('cantidad', 1)} {unidad}".strip()
+
+            p_unit = float(item_dict.get("precio_unitario", 0.0) or 0.0)
+            sub = float(item_dict.get("subtotal", 0.0) or 0.0)
 
             tabla_det.insert(
                 "",
                 "end",
                 values=(
-                    item_dict["producto_nombre"],
+                    item_dict.get("producto_nombre", ""),
                     texto_cantidad,
-                    f"${item_dict['precio_unitario']:.2f}",
-                    f"${item_dict['subtotal']:.2f}",
+                    f"${p_unit:.2f}",
+                    f"${sub:.2f}",
                 ),
             )
 
         tabla_det.pack(fill="both", expand=True)
 
         # Totales
+        sub_v = float(venta.get("subtotal", venta.get("total", 0.0)) or 0.0)
+        desc_v = float(venta.get("descuento", 0.0) or 0.0)
+        tot_v = float(venta.get("total", 0.0) or 0.0)
+
         lbl_totales = ctk.CTkLabel(
             dialogo,
             text=(
-                f"Subtotal: ${venta['subtotal']:.2f}  |  "
-                f"Descuento: ${venta['descuento']:.2f}  |  "
-                f"Total: ${venta['total']:.2f}"
+                f"Subtotal: ${sub_v:.2f}  |  "
+                f"Descuento: ${desc_v:.2f}  |  "
+                f"Total: ${tot_v:.2f}"
             ),
             font=ctk.CTkFont(size=13, weight="bold"),
             text_color="#2FA572",
@@ -409,25 +439,27 @@ class HistorialVentasWindow(ctk.CTkToplevel):
         venta = dict(venta) if hasattr(venta, "keys") else venta
 
         try:
-            # Adaptar los detalles al formato que espera TicketPrinter
             carrito = []
             for item in detalles:
                 item_dict = dict(item) if hasattr(item, "keys") else item
                 carrito.append({
-                    "nombre": item_dict["producto_nombre"],
-                    "cantidad": item_dict["cantidad"],
-                    "precio": item_dict["precio_unitario"],
-                    "subtotal": item_dict["subtotal"],
+                    "nombre": item_dict.get("producto_nombre", ""),
+                    "cantidad": item_dict.get("cantidad", 1),
+                    "precio": float(item_dict.get("precio_unitario", 0.0) or 0.0),
+                    "subtotal": float(item_dict.get("subtotal", 0.0) or 0.0),
                 })
 
-            # Invocación a tu módulo TicketPrinter
+            tot_v = float(venta.get("total", 0.0) or 0.0)
+            recibido_v = float(venta.get("monto_recibido", tot_v) or tot_v)
+            cambio_v = float(venta.get("cambio", 0.0) or 0.0)
+
             TicketPrinter.imprimir_ticket(
-                venta["id"],
+                venta.get("id", venta_id),
                 carrito,
-                venta["total"],
-                venta.get("monto_recibido", venta["total"]),
-                venta.get("cambio", 0.0),
-                venta["metodo_pago"],
+                tot_v,
+                recibido_v,
+                cambio_v,
+                venta.get("metodo_pago", "Efectivo"),
             )
 
             messagebox.showinfo(
@@ -520,15 +552,21 @@ class HistorialVentasWindow(ctk.CTkToplevel):
 
             for v in ventas:
                 v_dict = dict(v) if hasattr(v, "keys") else v
+                tot = float(v_dict.get("total", 0.0) or 0.0)
+                sub = float(v_dict.get("subtotal", tot) or 0.0)
+                desc = float(v_dict.get("descuento", 0.0) or 0.0)
+                rec = float(v_dict.get("monto_recibido", 0.0) or 0.0)
+                cam = float(v_dict.get("cambio", 0.0) or 0.0)
+
                 ws1.append([
-                    v_dict["id"],
-                    v_dict["fecha"],
-                    v_dict["metodo_pago"],
-                    v_dict["subtotal"],
-                    v_dict["descuento"],
-                    v_dict["total"],
-                    v_dict.get("monto_recibido", 0.0),
-                    v_dict.get("cambio", 0.0),
+                    v_dict.get("id", ""),
+                    v_dict.get("fecha", ""),
+                    v_dict.get("metodo_pago", ""),
+                    sub,
+                    desc,
+                    tot,
+                    rec,
+                    cam,
                 ])
 
             # Formatear números en moneda
@@ -559,15 +597,21 @@ class HistorialVentasWindow(ctk.CTkToplevel):
 
             for v in ventas:
                 v_dict = dict(v) if hasattr(v, "keys") else v
-                _, detalles = Venta.obtener_ticket(v_dict["id"])
+                v_id = v_dict.get("id")
+                if not v_id:
+                    continue
+                _, detalles = Venta.obtener_ticket(v_id)
                 for d in detalles:
                     d_dict = dict(d) if hasattr(d, "keys") else d
+                    p_u = float(d_dict.get("precio_unitario", 0.0) or 0.0)
+                    s_t = float(d_dict.get("subtotal", 0.0) or 0.0)
+
                     ws2.append([
-                        d_dict["venta_id"],
-                        d_dict["producto_nombre"],
-                        d_dict["cantidad"],
-                        d_dict["precio_unitario"],
-                        d_dict["subtotal"],
+                        d_dict.get("venta_id", v_id),
+                        d_dict.get("producto_nombre", ""),
+                        d_dict.get("cantidad", 1),
+                        p_u,
+                        s_t,
                     ])
 
             for row in range(2, ws2.max_row + 1):
@@ -606,14 +650,14 @@ class HistorialVentasWindow(ctk.CTkToplevel):
         ventas_dict = [dict(v) if hasattr(v, "keys") else v for v in ventas_hoy]
 
         total_efectivo = sum(
-            float(v["total"])
+            float(v.get("total", 0.0) or 0.0)
             for v in ventas_dict
-            if str(v["metodo_pago"]).upper() == "EFECTIVO"
+            if str(v.get("metodo_pago", "")).upper() == "EFECTIVO"
         )
         total_otros = sum(
-            float(v["total"])
+            float(v.get("total", 0.0) or 0.0)
             for v in ventas_dict
-            if str(v["metodo_pago"]).upper() != "EFECTIVO"
+            if str(v.get("metodo_pago", "")).upper() != "EFECTIVO"
         )
         total_general = total_efectivo + total_otros
 

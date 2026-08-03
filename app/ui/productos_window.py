@@ -140,7 +140,7 @@ class ProductosWindow(ctk.CTkToplevel):
             command=self.cargar_productos,
         ).pack(side="left", padx=20)
 
-        # CONFIGURACIÓN DE TABLA (TREEVIEW - CON COLUMNA MARCA)
+        # CONFIGURACIÓN DE TABLA (TREEVIEW - COLUMNA MARCA)
         columns = (
             "codigo",
             "nombre",
@@ -244,7 +244,7 @@ class ProductosWindow(ctk.CTkToplevel):
             return
 
         datos = self.tabla.item(seleccionado[0], "values")
-        estado = datos[9]  # El estado está en el índice 9 por la nueva columna Marca
+        estado = datos[9]  # El estado está en el índice 9
 
         if "🔴 Desactivado" in estado:
             self.btn_editar.configure(state="disabled", fg_color="#555555")
@@ -384,28 +384,23 @@ class ProductosWindow(ctk.CTkToplevel):
 
         productos = Producto.obtener_todos(self.mostrar_desactivados.get())
 
-        for producto in productos:
-            estado = (
-                "🔴 Desactivado" if producto["activo"] == 0 else "🟢 Activo"
-            )
-
-            marca_nombre = producto.get("marca_nombre") or producto.get(
-                "marca", ""
-            )
+        for p_raw in productos:
+            p = dict(p_raw)  # Convertir sqlite3.Row a diccionario dict de Python
+            estado = "🔴 Desactivado" if p.get("activo", 1) == 0 else "🟢 Activo"
 
             self.tabla.insert(
                 "",
                 "end",
                 values=(
-                    producto["codigo"],
-                    producto["nombre"],
-                    marca_nombre,
-                    producto["unidad"],
-                    producto["tipo_venta"],
-                    f"${float(producto['precio_compra']):.2f}",
-                    f"${float(producto['precio_venta']):.2f}",
-                    producto["existencia"],
-                    producto["stock_minimo"],
+                    p.get("codigo", ""),
+                    p.get("nombre", ""),
+                    p.get("marca", ""),
+                    p.get("unidad", ""),
+                    p.get("tipo_venta", ""),
+                    f"${float(p.get('precio_compra', 0)):.2f}",
+                    f"${float(p.get('precio_venta', 0)):.2f}",
+                    p.get("existencia", 0),
+                    p.get("stock_minimo", 0),
                     estado,
                 ),
             )
@@ -439,28 +434,23 @@ class ProductosWindow(ctk.CTkToplevel):
             texto, self.mostrar_desactivados.get()
         )
 
-        for producto in productos:
-            estado = (
-                "🔴 Desactivado" if producto["activo"] == 0 else "🟢 Activo"
-            )
-
-            marca_nombre = producto.get("marca_nombre") or producto.get(
-                "marca", ""
-            )
+        for p_raw in productos:
+            p = dict(p_raw)  # Convertir sqlite3.Row a diccionario dict de Python
+            estado = "🔴 Desactivado" if p.get("activo", 1) == 0 else "🟢 Activo"
 
             self.tabla.insert(
                 "",
                 "end",
                 values=(
-                    producto["codigo"],
-                    producto["nombre"],
-                    marca_nombre,
-                    producto["unidad"],
-                    producto["tipo_venta"],
-                    f"${float(producto['precio_compra']):.2f}",
-                    f"${float(producto['precio_venta']):.2f}",
-                    producto["existencia"],
-                    producto["stock_minimo"],
+                    p.get("codigo", ""),
+                    p.get("nombre", ""),
+                    p.get("marca", ""),
+                    p.get("unidad", ""),
+                    p.get("tipo_venta", ""),
+                    f"${float(p.get('precio_compra', 0)):.2f}",
+                    f"${float(p.get('precio_venta', 0)):.2f}",
+                    p.get("existencia", 0),
+                    p.get("stock_minimo", 0),
                     estado,
                 ),
             )
@@ -498,7 +488,7 @@ class ProductosWindow(ctk.CTkToplevel):
                     "codigo_barras": "Código Barras",
                     "nombre": "Producto",
                     "marca_id": "Marca ID",
-                    "marca_nombre": "Marca",
+                    "marca": "Marca",
                     "unidad": "Unidad",
                     "tipo_venta": "Tipo Venta",
                     "precio_compra": "Precio Compra",
