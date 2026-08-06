@@ -436,7 +436,7 @@ class HistorialVentasWindow(ctk.CTkToplevel):
             )
             return
 
-        venta = dict(venta) if hasattr(venta, "keys") else venta
+        venta_dict = dict(venta) if hasattr(venta, "keys") else venta
 
         try:
             carrito = []
@@ -449,17 +449,18 @@ class HistorialVentasWindow(ctk.CTkToplevel):
                     "subtotal": float(item_dict.get("subtotal", 0.0) or 0.0),
                 })
 
-            tot_v = float(venta.get("total", 0.0) or 0.0)
-            recibido_v = float(venta.get("monto_recibido", tot_v) or tot_v)
-            cambio_v = float(venta.get("cambio", 0.0) or 0.0)
+            tot_v = float(venta_dict.get("total", 0.0) or 0.0)
+            recibido_v = float(venta_dict.get("monto_recibido", tot_v) or tot_v)
+            cambio_v = float(venta_dict.get("cambio", 0.0) or 0.0)
+            metodo = venta_dict.get("metodo_pago", "Efectivo")
 
-            TicketPrinter.imprimir_ticket(
-                venta.get("id", venta_id),
+            TicketPrinter.imprimir_ticket_venta(
+                venta_dict.get("id", venta_id),
                 carrito,
                 tot_v,
                 recibido_v,
                 cambio_v,
-                venta.get("metodo_pago", "Efectivo"),
+                metodo,
             )
 
             messagebox.showinfo(
