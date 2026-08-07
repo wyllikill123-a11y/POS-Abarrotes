@@ -31,7 +31,6 @@ class TicketBuilder:
         texto += TicketBuilder.linea() + "\n"
 
         for item in detalle:
-
             nombre = item["nombre"][:18]
 
             texto += (
@@ -65,6 +64,6 @@ class TicketBuilder:
 
         texto += TicketBuilder.centrar(
             "¡GRACIAS POR SU COMPRA!"
-        ) + "\n\n\n"
+        ) + "\n"  # Ajustado a solo un salto de línea
 
         return texto

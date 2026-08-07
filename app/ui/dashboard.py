@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from app.models.producto import Producto
+from app.models.turno import Turno
 
 
 class Dashboard(ctk.CTkFrame):
@@ -18,12 +19,14 @@ class Dashboard(ctk.CTkFrame):
         )
         titulo.grid(row=0, column=0, columnspan=2, pady=(20, 25))
 
-        # ESTRUCTURA DE TARJETAS (Fondo Gris Oscuro Suave)
+        # ESTRUCTURA DE TARJETAS (6 Métricas clave)
         tarjetas = [
             ("💰 VENTAS DEL DÍA", "$0.00", "#4ADE80"),
             ("📦 PRODUCTOS", "0", "#38BDF8"),
             ("⚠️ INVENTARIO BAJO", "0", "#FBBF24"),
             ("🧾 ÚLTIMA VENTA", "SIN VENTAS", "#E2E8F0"),
+            ("🔑 ESTADO DE CAJA", "CERRADA", "#F87171"),
+            ("🕒 TURNO ACTIVO", "SIN TURNO", "#A78BFA"),
         ]
 
         fila = 1
@@ -49,7 +52,7 @@ class Dashboard(ctk.CTkFrame):
                 sticky="nsew",
             )
 
-            # Título de la tarjeta (16pt para evitar desbordes)
+            # Título de la tarjeta
             lblTitulo = ctk.CTkLabel(
                 card,
                 text=titulo_texto,
@@ -58,11 +61,11 @@ class Dashboard(ctk.CTkFrame):
             )
             lblTitulo.pack(pady=(18, 6), padx=10)
 
-            # Valor métrico (26pt con ajuste automático de margen)
+            # Valor métrico
             lblValor = ctk.CTkLabel(
                 card,
                 text=valor,
-                font=("Segoe UI", 26, "bold"),
+                font=("Segoe UI", 24, "bold"),
                 text_color="#FFFFFF",
             )
             lblValor.pack(pady=(0, 18), padx=10)
@@ -74,7 +77,7 @@ class Dashboard(ctk.CTkFrame):
                 columna = 0
                 fila += 1
 
-        # Cargar métricas
+        # Cargar métricas al iniciar
         self.actualizar()
 
     # =========================================================
@@ -89,6 +92,7 @@ class Dashboard(ctk.CTkFrame):
 
         total_hoy = Venta.total_hoy()
         ultima = Venta.ultima_venta()
+        turno_activo = Turno.obtener_activo()
 
         # 1. Ventas del día
         self.lbl_valores[0].configure(text=f"${total_hoy:,.2f}")
@@ -109,3 +113,12 @@ class Dashboard(ctk.CTkFrame):
             self.lbl_valores[3].configure(text=f"FOLIO #{ultima['id']}")
         else:
             self.lbl_valores[3].configure(text="SIN VENTAS")
+
+        # 5. Estado de la Caja
+        if turno_activo:
+            self.lbl_valores[4].configure(text="ABIERTA", text_color="#4ADE80")
+            # 6. Folio del turno activo
+            self.lbl_valores[5].configure(text=f"TURNO #{turno_activo['id']}")
+        else:
+            self.lbl_valores[4].configure(text="CERRADA", text_color="#F87171")
+            self.lbl_valores[5].configure(text="SIN TURNO")

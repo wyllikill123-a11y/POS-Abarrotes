@@ -373,95 +373,121 @@ class ProductosWindow(ctk.CTkToplevel):
             )
 
     def cargar_productos(self):
-        productos = Producto.obtener_todos(self.mostrar_desactivados.get())
-        self._poblar_tabla(productos)
+            productos = Producto.obtener_todos(self.mostrar_desactivados.get())
+            
+            # Ordenar los productos por código interno (convertido a texto/minúsculas para evitar errores)
+            productos_ordenados = sorted(
+                productos, 
+                key=lambda p: str(dict(p).get("codigo", "")).lower()
+            )
+            
+            self._poblar_tabla(productos_ordenados)
 
-        self.lbl_total.configure(
-            text=f"Productos registrados: {len(productos)}"
-        )
+            self.lbl_total.configure(
+                text=f"Productos registrados: {len(productos_ordenados)}"
+            )
 
-        self.btn_editar.configure(state="normal", fg_color="#2196F3")
-        self.btn_accion.configure(
-            text="❌ Desactivar",
-            fg_color="#D32F2F",
-            hover_color="#C62828",
-            command=self.desactivar_producto_boton,
-        )
-
-    def abrir_nuevo_producto(self):
-        ventana = NuevoProducto(self)
-        self.wait_window(ventana)
-        self.cargar_productos()
-        if hasattr(self.master, "dashboard"):
-            self.master.dashboard.actualizar()
+            self.btn_editar.configure(state="normal", fg_color="#2196F3")
+            self.btn_accion.configure(
+                text="❌ Desactivar",
+                fg_color="#D32F2F",
+                hover_color="#C62828",
+                command=self.desactivar_producto_boton,
+            )
 
     def buscar_producto(self, event=None):
-        texto = self.buscar.get().strip()
-        productos = Producto.buscar(
-            texto, self.mostrar_desactivados.get()
-        )
-        self._poblar_tabla(productos)
+            texto = self.buscar.get().strip()
+            productos = Producto.buscar(
+                texto, self.mostrar_desactivados.get()
+            )
+            
+            # Mantener el orden por código interno al realizar búsquedas
+            productos_ordenados = sorted(
+                productos, 
+                key=lambda p: str(dict(p).get("codigo", "")).lower()
+            )
+            
+            self._poblar_tabla(productos_ordenados)
 
-        self.lbl_total.configure(
-            text=f"Productos encontrados: {len(productos)}"
-        )
+            self.lbl_total.configure(
+                text=f"Productos encontrados: {len(productos_ordenados)}"
+            )
+
+
+    def abrir_nuevo_producto(self):
+            ventana = NuevoProducto(self)
+            self.wait_window(ventana)
+            self.cargar_productos()
+            if hasattr(self.master, "dashboard"):
+                self.master.dashboard.actualizar()
+
+    def buscar_producto(self, event=None):
+            texto = self.buscar.get().strip()
+            productos = Producto.buscar(
+                texto, self.mostrar_desactivados.get()
+            )
+            self._poblar_tabla(productos)
+
+            self.lbl_total.configure(
+                text=f"Productos encontrados: {len(productos)}"
+            )
 
     def exportar_a_excel(self):
-            try:
-                datos_raw = Producto.obtener_todos_para_excel()
+                try:
+                    datos_raw = Producto.obtener_todos_para_excel()
 
-                if not datos_raw:
-                    messagebox.showwarning(
-                        "Atención",
-                        "No hay productos registrados para exportar.",
+                    if not datos_raw:
+                        messagebox.showwarning(
+                            "Atención",
+                            "No hay productos registrados para exportar.",
+                        )
+                        return
+
+                    ruta_archivo = filedialog.asksaveasfilename(
+                        title="Guardar inventario como",
+                        defaultextension=".xlsx",
+                        filetypes=[("Archivos de Excel", "*.xlsx")],
                     )
-                    return
 
-                ruta_archivo = filedialog.asksaveasfilename(
-                    title="Guardar inventario como",
-                    defaultextension=".xlsx",
-                    filetypes=[("Archivos de Excel", "*.xlsx")],
-                )
+                    if not ruta_archivo:
+                        return
 
-                if not ruta_archivo:
-                    return
+                    datos_dict = [dict(fila) for fila in datos_raw]
+                    df = pd.DataFrame(datos_dict)
 
-                datos_dict = [dict(fila) for fila in datos_raw]
-                df = pd.DataFrame(datos_dict)
+                    # Mapeo de columnas sin 'categoria' ni 'proveedor'
+                    df = df.rename(
+                        columns={
+                            "codigo": "Código",
+                            "codigo_barras": "Código Barras",
+                            "nombre": "Producto",
+                            "marca_id": "Marca ID",
+                            "marca": "Marca",
+                            "unidad": "Unidad",
+                            "tipo_venta": "Tipo Venta",
+                            "precio_compra": "Precio Compra",
+                            "precio_venta": "Precio Venta",
+                            "existencia": "Stock",
+                            "stock_minimo": "Stock Mínimo",
+                            "activo": "Activo",
+                        }
+                    )
 
-                # Mapeo de columnas sin 'categoria' ni 'proveedor'
-                df = df.rename(
-                    columns={
-                        "codigo": "Código",
-                        "codigo_barras": "Código Barras",
-                        "nombre": "Producto",
-                        "marca_id": "Marca ID",
-                        "marca": "Marca",
-                        "unidad": "Unidad",
-                        "tipo_venta": "Tipo Venta",
-                        "precio_compra": "Precio Compra",
-                        "precio_venta": "Precio Venta",
-                        "existencia": "Stock",
-                        "stock_minimo": "Stock Mínimo",
-                        "activo": "Activo",
-                    }
-                )
+                    # Si el DataFrame por alguna razón conserva 'categoria_id' o 'proveedor', se filtran antes de guardar
+                    columnas_validas = [col for col in df.columns if col not in ["categoria", "categoria_id", "proveedor"]]
+                    df = df[columnas_validas]
 
-                # Si el DataFrame por alguna razón conserva 'categoria_id' o 'proveedor', se filtran antes de guardar
-                columnas_validas = [col for col in df.columns if col not in ["categoria", "categoria_id", "proveedor"]]
-                df = df[columnas_validas]
+                    df.to_excel(ruta_archivo, index=False, sheet_name="Inventario")
 
-                df.to_excel(ruta_archivo, index=False, sheet_name="Inventario")
+                    messagebox.showinfo(
+                        "Éxito",
+                        f"Inventario exportado correctamente en:\n{ruta_archivo}",
+                    )
 
-                messagebox.showinfo(
-                    "Éxito",
-                    f"Inventario exportado correctamente en:\n{ruta_archivo}",
-                )
-
-            except Exception as e:
-                messagebox.showerror(
-                    "Error", f"No se pudo exportar a Excel: {e}"
-                )
+                except Exception as e:
+                    messagebox.showerror(
+                        "Error", f"No se pudo exportar a Excel: {e}"
+                    )
 
 
     def importar_desde_excel(self):

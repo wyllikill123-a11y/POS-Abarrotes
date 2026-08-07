@@ -2,6 +2,7 @@ import sqlite3
 import sys
 from collections import defaultdict
 from pathlib import Path
+from app.models.turno import Turno
 
 if getattr(sys, "frozen", False):
     BASE_DIR = Path(sys.executable).parent
@@ -41,6 +42,13 @@ class Venta:
     ):
         if not carrito:
             raise ValueError("El carrito está vacío.")
+
+        # 0. Validar que exista un turno/caja abierto actualmente
+        turno_activo = Turno.obtener_activo()
+        if not turno_activo:
+            raise ValueError(
+                "No hay una caja/turno abierto. Por favor, realiza la apertura de caja antes de cobrar."
+            )
 
         # 1. Validar y acumular cantidades por producto
         demandas_por_codigo = defaultdict(float)
@@ -129,15 +137,16 @@ class Venta:
                         )
                     cambio = round(monto_recibido - total, 2)
 
-                # 5. Insertar venta principal
+                # 5. Insertar venta principal con su turno_id correspondiente
                 cursor.execute(
                     """
                     INSERT INTO ventas (
-                        total, metodo_pago, descuento, monto_recibido, cambio
+                        turno_id, total, metodo_pago, descuento, monto_recibido, cambio
                     )
-                    VALUES (?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 """,
                     (
+                        turno_activo["id"],
                         total,
                         metodo_pago.upper(),
                         descuento,

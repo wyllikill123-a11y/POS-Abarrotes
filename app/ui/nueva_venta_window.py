@@ -3,6 +3,8 @@ from tkinter import ttk, messagebox, simpledialog
 from app.models.producto import Producto
 from app.models.venta import Venta
 from app.printing.ticket_printer import TicketPrinter
+from app.models.turno import Turno
+from app.ui.corte_window import CorteWindow
 
 class CobroEfectivoDialog(ctk.CTkToplevel):
     def __init__(self, parent, total_a_pagar):
@@ -143,6 +145,15 @@ class CobroEfectivoDialog(ctk.CTkToplevel):
             self.confirmado = True
             self.destroy()
 
+    def ejecutar_cobro(self):
+        # 1. Validar si la caja/turno está abierto
+        if not Turno.obtener_activo():
+            # Llama directamente a la ventana para obligar a abrir la caja primero
+            CorteWindow(self)
+            return
+
+        # 2. Si la caja está abierta, continúa con el proceso normal de cobro
+        # ... tu código de cobro existente ...
 
 class VentaExitosaDialog(ctk.CTkToplevel):
     def __init__(self, parent, venta_id, carrito, total, recibido, cambio, metodo):
@@ -151,7 +162,6 @@ class VentaExitosaDialog(ctk.CTkToplevel):
         self.geometry("380x480")
         self.resizable(False, False)
 
-        # --- GUARDAR ATRIBUTOS PARA SU USO EN IMPRIMIR_TICKET ---
         self.venta_id = venta_id
         self.carrito = carrito
         self.total = total
@@ -184,7 +194,7 @@ class VentaExitosaDialog(ctk.CTkToplevel):
             text_color="gray"
         ).pack(pady=(0, 15))
 
-        card = ctk.CTkFrame(self, fg_color="#2B2B2B", corner_radius=10)
+        card = ctk.CTkFrame(self, fg_color="#2B2D31", corner_radius=10)
         card.pack(fill="x", padx=30, pady=10)
 
         ctk.CTkLabel(card, text="TOTAL", font=("Segoe UI", 11, "bold"), text_color="gray").pack(pady=(15, 2))
@@ -232,14 +242,15 @@ class VentaExitosaDialog(ctk.CTkToplevel):
         except Exception as e:
             messagebox.showerror("Error de Impresión", f"{str(e)}")
 
+
 class NuevaVentaWindow(ctk.CTkToplevel):
 
     def __init__(self, master):
         super().__init__(master)
 
         self.title("Nueva Venta - Abarrotes Rosita-Andrea")
-        self.geometry("950x600")
-        self.minsize(850, 500)
+        self.geometry("1050x680")
+        self.minsize(950, 580)
         
         master.update_idletasks()
         self.transient(master)
@@ -279,57 +290,61 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         self.frame_izquierdo = ctk.CTkFrame(self, fg_color="transparent")
         self.frame_izquierdo.pack(side="left", fill="both", expand=True, padx=(15, 10), pady=15)
 
-        self.frame_derecho = ctk.CTkFrame(self, width=280, fg_color="#3A3A3A", corner_radius=12)
+        # Panel Derecho Stilizado con Fondo Oscuro Elegante
+        self.frame_derecho = ctk.CTkFrame(self, width=320, fg_color="#2B2D31", corner_radius=12, border_width=1, border_color="#1E1F22")
         self.frame_derecho.pack(side="right", fill="both", padx=(10, 15), pady=15)
         self.frame_derecho.pack_propagate(False)
 
     def crear_barra_busqueda(self):
         barra_superior = ctk.CTkFrame(self.frame_izquierdo, fg_color="transparent")
-        barra_superior.pack(fill="x", pady=(0, 15))
+        barra_superior.pack(fill="x", pady=(0, 12))
 
         self.txt_buscar = ctk.CTkEntry(
             barra_superior,
             placeholder_text="Escanea o escribe el código de barras...",
             font=("Segoe UI", 14),
-            height=38
+            height=42,
+            border_width=1,
+            corner_radius=8
         )
         self.txt_buscar.pack(side="left", fill="x", expand=True, padx=(0, 10))
         self.txt_buscar.bind("<Return>", lambda event: self.agregar_producto_click())
 
         btn_agregar = ctk.CTkButton(
             barra_superior,
-            text="➕ Agregar",
-            font=("Segoe UI", 14, "bold"),
-            width=120,
-            height=38,
-            fg_color="#1A73E8",
-            hover_color="#1557B0",
+            text="➕ AGREGAR",
+            font=("Segoe UI", 13, "bold"),
+            width=130,
+            height=42,
+            corner_radius=8,
+            fg_color="#2563EB",
+            hover_color="#1D4ED8",
             command=self.agregar_producto_click
         )
         btn_agregar.pack(side="right")
 
     def crear_tabla_carrito(self):
-        tabla_frame = ctk.CTkFrame(self.frame_izquierdo)
+        tabla_frame = ctk.CTkFrame(self.frame_izquierdo, corner_radius=8)
         tabla_frame.pack(fill="both", expand=True)
 
         estilo = ttk.Style()
         estilo.theme_use("clam")
         estilo.configure(
             "Treeview",
-            background="#2B2B2B",
+            background="#2B2D31",
             foreground="white",
-            fieldbackground="#2B2B2B",
-            rowheight=30,
+            fieldbackground="#2B2D31",
+            rowheight=32,
             font=("Segoe UI", 11)
         )
         estilo.configure(
             "Treeview.Heading",
-            background="#3E3E3E",
-            foreground="white",
+            background="#1E1F22",
+            foreground="#38BDF8",
             relief="flat",
             font=("Segoe UI", 11, "bold")
         )
-        estilo.map("Treeview", background=[("selected", "#1A73E8")])
+        estilo.map("Treeview", background=[("selected", "#2563EB")])
 
         columnas = ("codigo", "nombre", "cantidad", "unidad", "precio", "subtotal")
         self.tabla = ttk.Treeview(tabla_frame, columns=columnas, show="headings")
@@ -342,7 +357,7 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         self.tabla.heading("subtotal", text="Subtotal")
 
         self.tabla.column("codigo", width=120, anchor="center")
-        self.tabla.column("nombre", width=250, anchor="w")
+        self.tabla.column("nombre", width=240, anchor="w")
         self.tabla.column("cantidad", width=80, anchor="center")
         self.tabla.column("unidad", width=80, anchor="center")
         self.tabla.column("precio", width=90, anchor="e")
@@ -354,64 +369,125 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         self.tabla.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # Doble clic permite modificar la cantidad rápidamente
         self.tabla.bind("<Double-1>", lambda e: self.cambiar_cantidad_seleccionada())
 
     def crear_panel_totales(self):
+        # 1. ENCABEZADO DE RESUMEN
         lbl_resumen = ctk.CTkLabel(
             self.frame_derecho,
-            text="Resumen de Venta",
-            font=("Segoe UI", 16, "bold"),
-            text_color="#64B5F6"
+            text="🧾 RESUMEN DE VENTA",
+            font=("Segoe UI", 15, "bold"),
+            text_color="#38BDF8"
         )
-        lbl_resumen.pack(pady=20)
+        lbl_resumen.pack(pady=(15, 5))
 
         self.lbl_articulos = ctk.CTkLabel(
             self.frame_derecho,
-            text="Artículos: 0",
-            font=("Segoe UI", 14)
+            text="Productos dist.: 0",
+            font=("Segoe UI", 13, "bold"),
+            text_color="#94A3B8"
         )
-        self.lbl_articulos.pack(pady=10)
+        self.lbl_articulos.pack(pady=(0, 10))
+
+        # 2. CUADRO DE TOTAL MONETARIO
+        frame_total = ctk.CTkFrame(self.frame_derecho, fg_color="#1E1F22", corner_radius=10)
+        frame_total.pack(fill="x", padx=15, pady=5)
 
         lbl_total_titulo = ctk.CTkLabel(
-            self.frame_derecho,
+            frame_total,
             text="TOTAL A PAGAR",
-            font=("Segoe UI", 14, "bold"),
-            text_color="#81C784"
+            font=("Segoe UI", 11, "bold"),
+            text_color="#4ADE80"
         )
-        lbl_total_titulo.pack(pady=(20, 5))
+        lbl_total_titulo.pack(pady=(10, 2))
 
         self.lbl_total_numero = ctk.CTkLabel(
-            self.frame_derecho,
+            frame_total,
             text="$0.00",
-            font=("Segoe UI", 36, "bold"),
+            font=("Segoe UI", 34, "bold"),
             text_color="#FFFFFF"
         )
-        self.lbl_total_numero.pack(pady=5)
+        self.lbl_total_numero.pack(pady=(0, 10))
 
+        # 3. MÉTODO DE PAGO
         ctk.CTkLabel(
             self.frame_derecho,
-            text="Método de pago",
-            font=("Segoe UI", 14, "bold")
-        ).pack(pady=(20, 5))
+            text="Método de Pago",
+            font=("Segoe UI", 12, "bold"),
+            text_color="#E2E8F0"
+        ).pack(pady=(12, 4))
 
         self.metodo_pago = ctk.CTkComboBox(
             self.frame_derecho,
-            values=["EFECTIVO", "TARJETA", "TRANSFERENCIA"]
+            values=["EFECTIVO", "TARJETA", "TRANSFERENCIA"],
+            height=35,
+            font=("Segoe UI", 12, "bold"),
+            dropdown_font=("Segoe UI", 12)
         )
-        self.metodo_pago.pack(fill="x", padx=20)
+        self.metodo_pago.pack(fill="x", padx=15)
         self.metodo_pago.set("EFECTIVO")
 
+        # 4. BOTÓN COBRAR
         self.btn_cobrar = ctk.CTkButton(
             self.frame_derecho,
-            text="💳 Cobrar  F12",
+            text="💳 COBRAR  [F12]",
             command=self.cobrar,
             font=("Segoe UI", 16, "bold"),
-            fg_color="#2E7D32",
-            hover_color="#1B5E20",
+            height=46,
+            corner_radius=8,
+            fg_color="#16A34A",
+            hover_color="#15803D",
             state="disabled"
         )
-        self.btn_cobrar.pack(side="bottom", fill="x", padx=20, pady=25)
+        self.btn_cobrar.pack(fill="x", padx=15, pady=(15, 10))
+
+        # =========================================================
+        # 5. GUÍA VISUAL DE ATAJOS DE TECLADO (LLAMATIVA)
+        # =========================================================
+        frame_atajos = ctk.CTkFrame(self.frame_derecho, fg_color="#1E1F22", corner_radius=10)
+        frame_atajos.pack(fill="both", expand=True, padx=15, pady=(5, 15))
+
+        lbl_atajos_titulo = ctk.CTkLabel(
+            frame_atajos,
+            text="⌨️ ATAJOS DE TECLADO",
+            font=("Segoe UI", 12, "bold"),
+            text_color="#FBBF24"
+        )
+        lbl_atajos_titulo.pack(pady=(8, 6))
+
+        atajos_lista = [
+            ("ENTER", "Agregar / Escanear"),
+            ("F2", "Modificar Cantidad"),
+            ("SUPR", "Quitar Producto"),
+            ("F12", "Cobrar Venta"),
+            ("ESC", "Cerrar Ventana")
+        ]
+
+        for tecla, accion in atajos_lista:
+            row = ctk.CTkFrame(frame_atajos, fg_color="transparent")
+            row.pack(fill="x", padx=10, pady=3)
+
+            # Insignia de la Tecla (Badge)
+            badge = ctk.CTkLabel(
+                row,
+                text=tecla,
+                font=("Consolas", 11, "bold"),
+                text_color="#0F172A",
+                fg_color="#E2E8F0",
+                corner_radius=4,
+                width=55,
+                height=22
+            )
+            badge.pack(side="left")
+
+            # Descripción de la Acción
+            lbl_desc = ctk.CTkLabel(
+                row,
+                text=accion,
+                font=("Segoe UI", 11, "bold"),
+                text_color="#CBD5E1"
+            )
+            lbl_desc.pack(side="left", padx=(8, 0))
 
     def agregar_producto_click(self):
         busqueda = self.txt_buscar.get().strip()
@@ -426,18 +502,14 @@ class NuevaVentaWindow(ctk.CTkToplevel):
                 producto_db = resultados[0]
 
         if producto_db:
-            # Convertir sqlite3.Row / tuple a dict para homogeneizar el acceso a campos
             prod_dict = dict(producto_db) if not isinstance(producto_db, dict) else producto_db
 
-            # Obtener campos de forma segura
             prod_id = prod_dict.get("id") or prod_dict.get("codigo")
             prod_codigo = prod_dict.get("codigo")
             prod_nombre = prod_dict.get("nombre")
             prod_precio = float(prod_dict.get("precio_venta", prod_dict.get("precio", 0.0)))
             unidad = str(prod_dict.get("unidad", "PZA")).upper()
 
-
-            # Si el producto es a granel, solicitar peso
             if unidad not in ["PZA", "PIEZA", "UNIDAD"]:
                 cantidad = self.solicitar_peso_granel(prod_nombre, unidad)
                 if cantidad is None or cantidad <= 0:
@@ -446,7 +518,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
             else:
                 cantidad = 1.0
 
-            # Agregar un solo elemento al carrito
             self.agregar_al_carrito({
                 "id": prod_id,
                 "codigo": prod_codigo,
@@ -455,7 +526,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
                 "precio": prod_precio
             }, cantidad=cantidad)
 
-            # Refrescar la interfaz y limpiar la caja de texto
             self.actualizar_tabla()
             self.txt_buscar.delete(0, "end")
             self.txt_buscar.focus()
@@ -464,7 +534,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
             self.after(100, lambda: self.txt_buscar.focus())
 
     def solicitar_peso_granel(self, nombre_prod, unidad):
-        """Abre un diálogo simple para ingresar peso o decimales de un producto a granel."""
         val = simpledialog.askfloat(
             "Venta a Granel",
             f"Ingrese la cantidad ({unidad}) para:\n{nombre_prod}",
@@ -494,7 +563,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
             }
 
     def cambiar_cantidad_seleccionada(self):
-        """Permite modificar la cantidad del producto seleccionado en la tabla (F2 o Doble Clic)."""
         seleccion = self.tabla.selection()
         if not seleccion:
             return
@@ -524,7 +592,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         self.after(100, lambda: self.txt_buscar.focus())
 
     def eliminar_seleccionado(self):
-        """Elimina por completo el ítem seleccionado con la tecla Supr / Delete."""
         seleccion = self.tabla.selection()
         if not seleccion:
             return
@@ -573,83 +640,81 @@ class NuevaVentaWindow(ctk.CTkToplevel):
             self.btn_cobrar.configure(state="disabled")
 
     def cobrar(self):
-            if not self.carrito:
-                messagebox.showwarning("Venta Vacía", "No hay productos en el carrito para procesar.")
+        if not self.carrito:
+            messagebox.showwarning("Venta Vacía", "No hay productos en el carrito para procesar.")
+            return
+
+        total_venta = sum(item["subtotal"] for item in self.carrito.values())
+        metodo = self.metodo_pago.get()
+
+        monto_recibido = total_venta
+        cambio = 0.0
+
+        if metodo == "EFECTIVO":
+            dialogo = CobroEfectivoDialog(self, total_venta)
+            self.wait_window(dialogo)
+
+            if not dialogo.confirmado:
+                if self.winfo_exists():
+                    self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
                 return
 
-            total_venta = sum(item["subtotal"] for item in self.carrito.values())
-            metodo = self.metodo_pago.get()
+            monto_recibido = dialogo.monto_recibido
+            cambio = dialogo.cambio
+        else:
+            if not messagebox.askyesno("Confirmar Cobro", f"¿Confirmar cobro de ${total_venta:.2f} con {metodo}?"):
+                if self.winfo_exists():
+                    self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
+                return
 
-            monto_recibido = total_venta
-            cambio = 0.0
+        try:
+            items_carrito = list(self.carrito.values())
 
-            if metodo == "EFECTIVO":
-                dialogo = CobroEfectivoDialog(self, total_venta)
-                self.wait_window(dialogo)
+            venta_id = Venta.registrar_venta(
+                carrito=items_carrito,
+                metodo_pago=metodo,
+                descuento=0,
+                monto_recibido=monto_recibido,
+                cambio=cambio
+            )
 
-                if not dialogo.confirmado:
-                    if self.winfo_exists():
-                        self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
-                    return
+            self.carrito.clear()
+            self.actualizar_tabla()
+            
+            if hasattr(self, 'txt_buscar') and self.txt_buscar.winfo_exists():
+                self.txt_buscar.delete(0, "end")
 
-                monto_recibido = dialogo.monto_recibido
-                cambio = dialogo.cambio
-            else:
-                if not messagebox.askyesno("Confirmar Cobro", f"¿Confirmar cobro de ${total_venta:.2f} con {metodo}?"):
-                    if self.winfo_exists():
-                        self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
-                    return
+            if hasattr(self.master, 'dashboard') and hasattr(self.master.dashboard, 'actualizar'):
+                self.master.dashboard.actualizar()
 
-            try:
-                items_carrito = list(self.carrito.values())
-
-                venta_id = Venta.registrar_venta(
-                    carrito=items_carrito,
-                    metodo_pago=metodo,
-                    descuento=0,
-                    monto_recibido=monto_recibido,
-                    cambio=cambio
-                )
-
-                self.carrito.clear()
-                self.actualizar_tabla()
+            dlg_exito = VentaExitosaDialog(
+                self, 
+                venta_id=venta_id, 
+                carrito=items_carrito,
+                total=total_venta, 
+                recibido=monto_recibido, 
+                cambio=cambio, 
+                metodo=metodo
+            )
+            self.wait_window(dlg_exito)
+            
+            if self.winfo_exists():
+                try:
+                    self.metodo_pago.set("EFECTIVO")
+                except Exception:
+                    pass
                 
-                if hasattr(self, 'txt_buscar') and self.txt_buscar.winfo_exists():
-                    self.txt_buscar.delete(0, "end")
+                self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
 
-                if hasattr(self.master, 'dashboard') and hasattr(self.master.dashboard, 'actualizar'):
-                    self.master.dashboard.actualizar()
+        except ValueError as err_val:
+            messagebox.showwarning("Atención", str(err_val))
+            if self.winfo_exists():
+                self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
 
-                # Instanciar pasando el parámetro 'carrito'
-                dlg_exito = VentaExitosaDialog(
-                    self, 
-                    venta_id=venta_id, 
-                    carrito=items_carrito,
-                    total=total_venta, 
-                    recibido=monto_recibido, 
-                    cambio=cambio, 
-                    metodo=metodo
-                )
-                self.wait_window(dlg_exito)
-                
-                # ✅ VERIFICACIÓN DE SEGURIDAD: Solo resetear si la ventana sigue existiendo
-                if self.winfo_exists():
-                    try:
-                        self.metodo_pago.set("EFECTIVO")
-                    except Exception:
-                        pass
-                    
-                    self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
-
-            except ValueError as err_val:
-                messagebox.showwarning("Atención", str(err_val))
-                if self.winfo_exists():
-                    self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
-
-            except Exception as err:
-                import traceback
-                print("ERROR DETALLADO EN REGISTRAR VENTA:")
-                traceback.print_exc()
-                messagebox.showerror("Error al Registrar Venta", f"Detalle del error:\n{str(err)}")
-                if self.winfo_exists():
-                    self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
+        except Exception as err:
+            import traceback
+            print("ERROR DETALLADO EN REGISTRAR VENTA:")
+            traceback.print_exc()
+            messagebox.showerror("Error al Registrar Venta", f"Detalle del error:\n{str(err)}")
+            if self.winfo_exists():
+                self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)

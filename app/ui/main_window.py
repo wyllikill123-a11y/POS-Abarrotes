@@ -1,6 +1,7 @@
 from datetime import datetime
 import customtkinter as ctk
 
+from app.ui.corte_window import CorteWindow
 from app.ui.dashboard import Dashboard
 from app.ui.nueva_venta_window import NuevaVentaWindow
 from app.ui.productos_window import ProductosWindow
@@ -47,6 +48,13 @@ class MainWindow(ctk.CTk):
     def abrir_historial_ventas(self):
         ventana_historial = HistorialVentasWindow(self)
         ventana_historial.focus()
+
+    def abrir_caja_corte(self):
+        def al_cerrar_modal():
+            if hasattr(self, "dashboard") and self.dashboard:
+                self.dashboard.actualizar()
+
+        CorteWindow(self, on_close=al_cerrar_modal)
 
     # =========================================================
     # COMPONENTES VISUALES
@@ -123,7 +131,7 @@ class MainWindow(ctk.CTk):
             self.menu,
             fg_color="#0F172A",
             corner_radius=8,
-            height=48
+            height=48,
         )
         frame_titulo_menu.pack(fill="x", padx=15, pady=(15, 12))
         frame_titulo_menu.pack_propagate(False)
@@ -141,6 +149,7 @@ class MainWindow(ctk.CTk):
         # =========================================================
         botones = [
             ("🛒  NUEVA VENTA", self.abrir_ventas, "#2563EB", "#1D4ED8", "#FFFFFF"),
+            ("🔑  CORTE / CAJA", self.abrir_caja_corte, "#059669", "#047857", "#FFFFFF"),
             ("📦  PRODUCTOS", self.abrir_productos, "transparent", "#E2E8F0", "#1E293B"),
             ("📊  INVENTARIO", None, "transparent", "#E2E8F0", "#1E293B"),
             ("📈  REPORTES / HISTORIAL", self.abrir_historial_ventas, "transparent", "#E2E8F0", "#1E293B"),

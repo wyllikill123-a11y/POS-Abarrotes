@@ -53,7 +53,7 @@ def inicializar_bd():
         )
     """)
 
-    # 4. Tabla Productos (Permite 'Unidad' o 'Granel' en tipo_venta)
+    # 4. Tabla Productos
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS productos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,31 +81,38 @@ def inicializar_bd():
         )
     """)
 
-    # -------------------------------------------------------------
-    # MIGRACIÓN AUTOMÁTICA: Agregar tipo_venta si la BD ya existía
-    # -------------------------------------------------------------
-    try:
-        cursor.execute(
-            "ALTER TABLE productos ADD COLUMN tipo_venta TEXT DEFAULT 'Unidad'"
+    # 5. Tabla Turnos / Cajas
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS turnos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha_apertura TEXT NOT NULL,
+            fecha_cierre TEXT,
+            monto_inicial REAL DEFAULT 0,
+            monto_final REAL DEFAULT 0,
+            monto_efectivo REAL DEFAULT 0,
+            monto_tarjeta REAL DEFAULT 0,
+            monto_transferencia REAL DEFAULT 0,
+            total_ventas REAL DEFAULT 0,
+            estado TEXT DEFAULT 'ABIERTO' CHECK(estado IN ('ABIERTO', 'CERRADO'))
         )
-    except sqlite3.OperationalError:
-        # La columna 'tipo_venta' ya existe en la tabla, ignorar error.
-        pass
+    """)
 
-    # 5. Tabla Encabezado de Ventas
+    # 6. Tabla Encabezado de Ventas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ventas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            turno_id INTEGER,
             total REAL NOT NULL,
             metodo_pago TEXT NOT NULL,
             descuento REAL DEFAULT 0,
             monto_recibido REAL NOT NULL,
             cambio REAL NOT NULL,
-            fecha TEXT DEFAULT (DATETIME('now', 'localtime'))
+            fecha TEXT DEFAULT (DATETIME('now', 'localtime')),
+            FOREIGN KEY (turno_id) REFERENCES turnos(id) ON DELETE SET NULL
         )
     """)
 
-    # 6. Tabla Detalle de Ventas
+    # 7. Tabla Detalle de Ventas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS detalle_ventas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -118,6 +125,19 @@ def inicializar_bd():
             FOREIGN KEY (producto_id) REFERENCES productos(id)
         )
     """)
+
+    # -------------------------------------------------------------
+    # MIGRACIONES AUTOMÁTICAS
+    # -------------------------------------------------------------
+    try:
+        cursor.execute("ALTER TABLE productos ADD COLUMN tipo_venta TEXT DEFAULT 'Unidad'")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE ventas ADD COLUMN turno_id INTEGER REFERENCES turnos(id)")
+    except sqlite3.OperationalError:
+        pass
 
     conn.commit()
     conn.close()
