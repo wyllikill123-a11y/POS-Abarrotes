@@ -1,4 +1,3 @@
-# app/ui/corte_window.py
 import customtkinter as ctk
 from tkinter import messagebox
 from app.models.turno import Turno
@@ -7,19 +6,29 @@ from app.printing.corte_ticket_builder import CorteTicketBuilder
 
 class CorteWindow(ctk.CTkToplevel):
 
-    def __init__(self, master, impresora_service=None):
+    def __init__(self, master, impresora_service=None, on_close=None):
         super().__init__(master)
         self.impresora = impresora_service
+        self.on_close = on_close
 
         self.title("Control de Caja y Turnos")
         self.geometry("400x350")
         self.resizable(False, False)
+
+        # Configurar protocolo para cuando el usuario presione la "X" de la ventana
+        self.protocol("WM_DELETE_WINDOW", self._cerrar_ventana)
 
         self.transient(master)
         self.grab_set()
 
         self.turno_actual = Turno.obtener_activo()
         self._construir_ui()
+
+    def _cerrar_ventana(self):
+        """Ejecuta el callback on_close si existe y destruye la ventana."""
+        if callable(self.on_close):
+            self.on_close()
+        self.destroy()
 
     def _construir_ui(self):
         if not self.turno_actual:
@@ -56,7 +65,7 @@ class CorteWindow(ctk.CTkToplevel):
 
             ctk.CTkButton(
                 self,
-                text="📊 Realizar Corte y Imprimir",
+                text="📊 Realizar Corte e Imprimir",
                 fg_color="#D32F2F",
                 hover_color="#C62828",
                 command=self.realizar_corte,
@@ -69,7 +78,7 @@ class CorteWindow(ctk.CTkToplevel):
             messagebox.showinfo(
                 "Éxito", "Turno iniciado correctamente. ¡Buena jornada!"
             )
-            self.destroy()
+            self._cerrar_ventana()
         except ValueError as e:
             messagebox.showerror(
                 "Error", f"Ingresa un valor numérico válido: {e}"
@@ -93,7 +102,7 @@ class CorteWindow(ctk.CTkToplevel):
                     "Corte Completado",
                     f"Turno #{datos_corte['id_turno']} cerrado.\n\nTotal Ventas: ${datos_corte['total_ventas']:.2f}\nEfectivo en Caja: ${datos_corte['monto_total_caja']:.2f}",
                 )
-                self.destroy()
+                self._cerrar_ventana()
             except Exception as e:
                 messagebox.showerror(
                     "Error", f"No se pudo realizar el corte: {e}"
