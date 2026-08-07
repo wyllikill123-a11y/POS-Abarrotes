@@ -140,7 +140,7 @@ class ProductosWindow(ctk.CTkToplevel):
             command=self.cargar_productos,
         ).pack(side="left", padx=20)
 
-        # CONFIGURACIÓN DE TABLA (TREEVIEW - COLUMNA MARCA)
+        # CONFIGURACIÓN DE TABLA (TREEVIEW)
         columns = (
             "codigo",
             "nombre",
@@ -163,61 +163,30 @@ class ProductosWindow(ctk.CTkToplevel):
         )
 
         self.tabla.bind("<Double-1>", self.editar_producto)
-
         self.tabla.bind(
             "<<TreeviewSelect>>", self.verificar_estado_seleccionado
         )
 
-        self.tabla.heading(
-            "codigo",
-            text="Código",
-            command=lambda: self.ordenar_por_columna("codigo", False),
-        )
-        self.tabla.heading(
-            "nombre",
-            text="Producto",
-            command=lambda: self.ordenar_por_columna("nombre", False),
-        )
-        self.tabla.heading(
-            "marca",
-            text="Marca",
-            command=lambda: self.ordenar_por_columna("marca", False),
-        )
-        self.tabla.heading(
-            "unidad",
-            text="Unidad",
-            command=lambda: self.ordenar_por_columna("unidad", False),
-        )
-        self.tabla.heading(
-            "tipo_venta",
-            text="Tipo Venta",
-            command=lambda: self.ordenar_por_columna("tipo_venta", False),
-        )
-        self.tabla.heading(
-            "precio_compra",
-            text="Compra",
-            command=lambda: self.ordenar_por_columna("precio_compra", False),
-        )
-        self.tabla.heading(
-            "precio_venta",
-            text="Venta",
-            command=lambda: self.ordenar_por_columna("precio_venta", False),
-        )
-        self.tabla.heading(
-            "existencia",
-            text="Stock",
-            command=lambda: self.ordenar_por_columna("existencia", False),
-        )
-        self.tabla.heading(
-            "stock_minimo",
-            text="Stock mín.",
-            command=lambda: self.ordenar_por_columna("stock_minimo", False),
-        )
-        self.tabla.heading(
-            "estado",
-            text="Estado",
-            command=lambda: self.ordenar_por_columna("estado", False),
-        )
+        headers = [
+            ("codigo", "Código"),
+            ("nombre", "Producto"),
+            ("marca", "Marca"),
+            ("unidad", "Unidad"),
+            ("tipo_venta", "Tipo Venta"),
+            ("precio_compra", "Compra"),
+            ("precio_venta", "Venta"),
+            ("existencia", "Stock"),
+            ("stock_minimo", "Stock mín."),
+            ("estado", "Estado"),
+        ]
+
+        # Vinculación segura de encabezados para evitar problemas de "Late Binding"
+        for col_id, col_text in headers:
+            self.tabla.heading(
+                col_id,
+                text=col_text,
+                command=lambda c=col_id: self.ordenar_por_columna(c, False),
+            )
 
         self.tabla.column("codigo", width=100, anchor="center")
         self.tabla.column("nombre", width=250)
@@ -244,7 +213,7 @@ class ProductosWindow(ctk.CTkToplevel):
             return
 
         datos = self.tabla.item(seleccionado[0], "values")
-        estado = datos[9]  # El estado está en el índice 9
+        estado = datos[9]
 
         if "🔴 Desactivado" in estado:
             self.btn_editar.configure(state="disabled", fg_color="#555555")
@@ -276,6 +245,10 @@ class ProductosWindow(ctk.CTkToplevel):
         codigo = datos[0]
         producto = Producto.buscar_por_codigo(codigo)
 
+        if not producto:
+            messagebox.showerror("Error", "No se encontró la información del producto.")
+            return
+
         ventana = NuevoProducto(self, producto)
         self.wait_window(ventana)
         self.cargar_productos()
@@ -290,7 +263,7 @@ class ProductosWindow(ctk.CTkToplevel):
                 "Por favor, seleccione un producto de la lista para editar.",
             )
             return
-        self.editar_producto(event=None)
+        self.editar_producto()
 
     def desactivar_producto_boton(self):
         seleccionados = self.tabla.selection()
@@ -304,20 +277,15 @@ class ProductosWindow(ctk.CTkToplevel):
         productos_a_desactivar = []
         for item_id in seleccionados:
             datos = self.tabla.item(item_id, "values")
-            codigo = datos[0]
-            nombre = datos[1]
             productos_a_desactivar.append(
-                {"codigo": codigo, "nombre": nombre}
+                {"codigo": datos[0], "nombre": datos[1]}
             )
 
         if len(productos_a_desactivar) == 1:
             mensaje = f"¿Está seguro de que desea desactivar el producto:\n\n👉 {productos_a_desactivar[0]['nombre']} ({productos_a_desactivar[0]['codigo']})?"
         else:
             lista_nombres = "\n".join(
-                [
-                    f"👉 {p['nombre']} ({p['codigo']})"
-                    for p in productos_a_desactivar
-                ]
+                [f"👉 {p['nombre']} ({p['codigo']})" for p in productos_a_desactivar]
             )
             mensaje = f"¿Está seguro de que desea desactivar {len(productos_a_desactivar)} productos?\n\n{lista_nombres}"
 
@@ -378,14 +346,13 @@ class ProductosWindow(ctk.CTkToplevel):
                     "Error", f"No se pudo reactivar el producto: {e}"
                 )
 
-    def cargar_productos(self):
+    def _poblar_tabla(self, productos):
+        """Método auxiliar para reutilizar la lógica de inserción de datos."""
         for fila in self.tabla.get_children():
             self.tabla.delete(fila)
 
-        productos = Producto.obtener_todos(self.mostrar_desactivados.get())
-
         for p_raw in productos:
-            p = dict(p_raw)  # Convertir sqlite3.Row a diccionario dict de Python
+            p = dict(p_raw)
             estado = "🔴 Desactivado" if p.get("activo", 1) == 0 else "🟢 Activo"
 
             self.tabla.insert(
@@ -404,6 +371,10 @@ class ProductosWindow(ctk.CTkToplevel):
                     estado,
                 ),
             )
+
+    def cargar_productos(self):
+        productos = Producto.obtener_todos(self.mostrar_desactivados.get())
+        self._poblar_tabla(productos)
 
         self.lbl_total.configure(
             text=f"Productos registrados: {len(productos)}"
@@ -425,91 +396,73 @@ class ProductosWindow(ctk.CTkToplevel):
             self.master.dashboard.actualizar()
 
     def buscar_producto(self, event=None):
-        texto = self.buscar.get()
-
-        for fila in self.tabla.get_children():
-            self.tabla.delete(fila)
-
+        texto = self.buscar.get().strip()
         productos = Producto.buscar(
             texto, self.mostrar_desactivados.get()
         )
-
-        for p_raw in productos:
-            p = dict(p_raw)  # Convertir sqlite3.Row a diccionario dict de Python
-            estado = "🔴 Desactivado" if p.get("activo", 1) == 0 else "🟢 Activo"
-
-            self.tabla.insert(
-                "",
-                "end",
-                values=(
-                    p.get("codigo", ""),
-                    p.get("nombre", ""),
-                    p.get("marca", ""),
-                    p.get("unidad", ""),
-                    p.get("tipo_venta", ""),
-                    f"${float(p.get('precio_compra', 0)):.2f}",
-                    f"${float(p.get('precio_venta', 0)):.2f}",
-                    p.get("existencia", 0),
-                    p.get("stock_minimo", 0),
-                    estado,
-                ),
-            )
+        self._poblar_tabla(productos)
 
         self.lbl_total.configure(
             text=f"Productos encontrados: {len(productos)}"
         )
 
     def exportar_a_excel(self):
-        try:
-            datos_raw = Producto.obtener_todos_para_excel()
+            try:
+                datos_raw = Producto.obtener_todos_para_excel()
 
-            if not datos_raw:
-                messagebox.showwarning(
-                    "Atención",
-                    "No hay productos registrados para exportar.",
+                if not datos_raw:
+                    messagebox.showwarning(
+                        "Atención",
+                        "No hay productos registrados para exportar.",
+                    )
+                    return
+
+                ruta_archivo = filedialog.asksaveasfilename(
+                    title="Guardar inventario como",
+                    defaultextension=".xlsx",
+                    filetypes=[("Archivos de Excel", "*.xlsx")],
                 )
-                return
 
-            ruta_archivo = filedialog.asksaveasfilename(
-                title="Guardar inventario como",
-                defaultextension=".xlsx",
-                filetypes=[("Archivos de Excel", "*.xlsx")],
-            )
+                if not ruta_archivo:
+                    return
 
-            if not ruta_archivo:
-                return
+                datos_dict = [dict(fila) for fila in datos_raw]
+                df = pd.DataFrame(datos_dict)
 
-            datos_dict = [dict(fila) for fila in datos_raw]
-            df = pd.DataFrame(datos_dict)
+                # Mapeo de columnas sin 'categoria' ni 'proveedor'
+                df = df.rename(
+                    columns={
+                        "codigo": "Código",
+                        "codigo_barras": "Código Barras",
+                        "nombre": "Producto",
+                        "marca_id": "Marca ID",
+                        "marca": "Marca",
+                        "unidad": "Unidad",
+                        "tipo_venta": "Tipo Venta",
+                        "precio_compra": "Precio Compra",
+                        "precio_venta": "Precio Venta",
+                        "existencia": "Stock",
+                        "stock_minimo": "Stock Mínimo",
+                        "activo": "Activo",
+                    }
+                )
 
-            df = df.rename(
-                columns={
-                    "codigo": "Código",
-                    "codigo_barras": "Código Barras",
-                    "nombre": "Producto",
-                    "marca_id": "Marca ID",
-                    "marca": "Marca",
-                    "unidad": "Unidad",
-                    "tipo_venta": "Tipo Venta",
-                    "precio_compra": "Precio Compra",
-                    "precio_venta": "Precio Venta",
-                    "existencia": "Stock",
-                    "stock_minimo": "Stock Mínimo",
-                    "activo": "Activo",
-                }
-            )
+                # Si el DataFrame por alguna razón conserva 'categoria_id' o 'proveedor', se filtran antes de guardar
+                columnas_validas = [col for col in df.columns if col not in ["categoria", "categoria_id", "proveedor"]]
+                df = df[columnas_validas]
 
-            df.to_excel(ruta_archivo, index=False, sheet_name="Inventario")
+                df.to_excel(ruta_archivo, index=False, sheet_name="Inventario")
 
-            messagebox.showinfo(
-                "Éxito",
-                f"Inventario exportado correctamente en:\n{ruta_archivo}",
-            )
+                messagebox.showinfo(
+                    "Éxito",
+                    f"Inventario exportado correctamente en:\n{ruta_archivo}",
+                )
 
-        except Exception as e:
-            messagebox.showerror(
-                "Error", f"No se pudo exportar a Excel: {e}"
-            )
+            except Exception as e:
+                messagebox.showerror(
+                    "Error", f"No se pudo exportar a Excel: {e}"
+                )
+
 
     def importar_desde_excel(self):
         try:
@@ -527,6 +480,9 @@ class ProductosWindow(ctk.CTkToplevel):
             if "Código Barras" not in df.columns:
                 df["Código Barras"] = ""
 
+            if "Marca ID" not in df.columns:
+                df["Marca ID"] = 1
+
             columnas_necesarias = [
                 "Código",
                 "Código Barras",
@@ -541,9 +497,17 @@ class ProductosWindow(ctk.CTkToplevel):
                 "Activo",
             ]
 
-            # Verificar si falta Marca ID
-            if "Marca ID" not in df.columns:
-                df["Marca ID"] = 1
+            # Validación explícita de columnas faltantes
+            columnas_faltantes = [
+                col for col in columnas_necesarias if col not in df.columns
+            ]
+            if columnas_faltantes:
+                messagebox.showerror(
+                    "Error de Formato",
+                    f"El archivo Excel no contiene las siguientes columnas requeridas:\n\n"
+                    + ", ".join(columnas_faltantes),
+                )
+                return
 
             lista_productos = df[columnas_necesarias].values.tolist()
 
@@ -586,10 +550,11 @@ class ProductosWindow(ctk.CTkToplevel):
 
         filas.sort(key=lambda el: limpiar_y_convertir(el[0]), reverse=reverso)
 
-        for indice, (valor, fila) in enumerate(filas):
+        for indice, (_, fila) in enumerate(filas):
             self.tabla.move(fila, "", indice)
 
+        # Actualiza el comando del encabezado preservando 'columna' explícitamente mediante binding por argumento
         self.tabla.heading(
             columna,
-            command=lambda: self.ordenar_por_columna(columna, not reverso),
+            command=lambda c=columna: self.ordenar_por_columna(c, not reverso),
         )

@@ -1,29 +1,29 @@
 import customtkinter as ctk
 from app.models.producto import Producto
-from app.views.historial_ventas import HistorialVentasWindow
 
 
 class Dashboard(ctk.CTkFrame):
 
     def __init__(self, master):
-        super().__init__(master)
+        super().__init__(master, fg_color="#F8FAFC")
 
         self.grid_columnconfigure((0, 1), weight=1)
 
-        # Título
+        # TÍTULO PRINCIPAL
         titulo = ctk.CTkLabel(
             self,
-            text="Bienvenido a Abarrotes Rosita-Andrea (WI)",
-            font=("Segoe UI", 24, "bold"),
+            text="BIENVENIDO A ABARROTES ROSITA-ANDREA (WI)",
+            font=("Segoe UI", 22, "bold"),
+            text_color="#0F172A",
         )
-        titulo.grid(row=0, column=0, columnspan=2, pady=(20, 30))
+        titulo.grid(row=0, column=0, columnspan=2, pady=(20, 25))
 
-        # ESTRUCTURA DE TARJETAS
+        # ESTRUCTURA DE TARJETAS (Fondo Gris Oscuro Suave)
         tarjetas = [
-            ("💰 Ventas del día", "$0.00", "#81C784"),
-            ("📦 Productos", "0", "#64B5F6"),
-            ("⚠ Inventario bajo", "0", "#FFB74D"),
-            ("🧾 Última venta", "Sin ventas", "#E0E0E0"),
+            ("💰 VENTAS DEL DÍA", "$0.00", "#4ADE80"),
+            ("📦 PRODUCTOS", "0", "#38BDF8"),
+            ("⚠️ INVENTARIO BAJO", "0", "#FBBF24"),
+            ("🧾 ÚLTIMA VENTA", "SIN VENTAS", "#E2E8F0"),
         ]
 
         fila = 1
@@ -32,33 +32,40 @@ class Dashboard(ctk.CTkFrame):
 
         for titulo_texto, valor, color_titulo in tarjetas:
 
+            # Tarjeta con fondo gris oscuro profesional (#2B2D31)
             card = ctk.CTkFrame(
-                self, width=250, height=120, corner_radius=12, fg_color="#3A3A3A"
+                self,
+                corner_radius=12,
+                fg_color="#2B2D31",
+                border_width=1,
+                border_color="#1E1F22",
             )
 
             card.grid(
                 row=fila,
                 column=columna,
-                padx=20,
-                pady=15,
+                padx=15,
+                pady=12,
                 sticky="nsew",
             )
 
+            # Título de la tarjeta (16pt para evitar desbordes)
             lblTitulo = ctk.CTkLabel(
                 card,
                 text=titulo_texto,
-                font=("Segoe UI", 18, "bold"),
+                font=("Segoe UI", 16, "bold"),
                 text_color=color_titulo,
             )
-            lblTitulo.pack(pady=(20, 10))
+            lblTitulo.pack(pady=(18, 6), padx=10)
 
+            # Valor métrico (26pt con ajuste automático de margen)
             lblValor = ctk.CTkLabel(
                 card,
                 text=valor,
                 font=("Segoe UI", 26, "bold"),
                 text_color="#FFFFFF",
             )
-            lblValor.pack()
+            lblValor.pack(pady=(0, 18), padx=10)
 
             self.lbl_valores.append(lblValor)
 
@@ -67,93 +74,38 @@ class Dashboard(ctk.CTkFrame):
                 columna = 0
                 fila += 1
 
-        # =========================================================
-        # SECCIÓN DE ACCIONES RÁPIDAS (BOTONES DE ACCESO DIRECTO)
-        # =========================================================
-        self._crear_panel_acciones(fila)
-
         # Cargar métricas
         self.actualizar()
 
-    def _crear_panel_acciones(self, fila_inicio):
-        actions_frame = ctk.CTkFrame(self, fg_color="transparent")
-        actions_frame.grid(
-            row=fila_inicio,
-            column=0,
-            columnspan=2,
-            pady=(25, 10),
-            padx=20,
-            sticky="ew",
-        )
-
-        actions_frame.grid_columnconfigure((0, 1), weight=1)
-
-        # Botón 1: Historial de Ventas y Reportes
-        btn_historial = ctk.CTkButton(
-            actions_frame,
-            text="📋 Historial y Reportes de Ventas",
-            font=("Segoe UI", 14, "bold"),
-            height=45,
-            fg_color="#1f538d",
-            hover_color="#14375e",
-            command=self.abrir_historial_ventas,
-        )
-        btn_historial.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
-
-        # Botón 2: Corte de Caja Directo
-        btn_corte = ctk.CTkButton(
-            actions_frame,
-            text="💵 Corte de Caja (Arqueo)",
-            font=("Segoe UI", 14, "bold"),
-            height=45,
-            fg_color="#D97706",
-            hover_color="#B45309",
-            command=self.abrir_corte_caja_directo,
-        )
-        btn_corte.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
-
     # =========================================================
-    # FUNCIONES DE NAVEGACIÓN Y CONEXIÓN
+    # ACTUALIZACIÓN DE MÉTRICAS EN TIEMPO REAL
     # =========================================================
-
-    def abrir_historial_ventas(self):
-        """Abre la ventana completa de Historial de Ventas."""
-        ventana_historial = HistorialVentasWindow(self)
-        ventana_historial.focus()
-
-    def abrir_corte_caja_directo(self):
-        """Abre directamente la ventana modal de Arqueo / Corte de Caja."""
-        ventana_historial = HistorialVentasWindow(self)
-        ventana_historial.withdraw()  # Oculta la lista completa
-        ventana_historial.abrir_corte_caja()  # Dispara el modal de corte de caja
 
     def actualizar(self):
         from app.models.venta import Venta
 
-        # Productos
         total_productos = Producto.contar_productos()
         inventario_bajo = Producto.contar_stock_bajo()
 
-        # Ventas
         total_hoy = Venta.total_hoy()
         ultima = Venta.ultima_venta()
 
-        # Ventas del día
+        # 1. Ventas del día
         self.lbl_valores[0].configure(text=f"${total_hoy:,.2f}")
 
-        # Productos
+        # 2. Productos registrados
         self.lbl_valores[1].configure(text=str(total_productos))
 
-        # Inventario bajo
+        # 3. Alerta de Inventario bajo
         if inventario_bajo > 0:
             self.lbl_valores[2].configure(
-                text=str(inventario_bajo), text_color="#FF5252"
+                text=str(inventario_bajo), text_color="#F87171"
             )
         else:
             self.lbl_valores[2].configure(text="0", text_color="#FFFFFF")
 
-        # Última venta
+        # 4. Última venta realizada
         if ultima:
-            self.lbl_valores[3].configure(text=f"Folio #{ultima['id']}")
+            self.lbl_valores[3].configure(text=f"FOLIO #{ultima['id']}")
         else:
-            self.lbl_valores[3].configure(text="Sin ventas")
+            self.lbl_valores[3].configure(text="SIN VENTAS")

@@ -219,8 +219,18 @@ class Producto:
             cursor = conexion.cursor()
             sql = """
                 SELECT 
-                    p.*,
-                    m.nombre AS marca
+                    p.codigo,
+                    p.codigo_barras,
+                    p.nombre,
+                    p.marca_id,
+                    m.nombre AS marca,
+                    p.unidad,
+                    p.tipo_venta,
+                    p.precio_compra,
+                    p.precio_venta,
+                    p.existencia,
+                    p.stock_minimo,
+                    p.activo
                 FROM productos p
                 LEFT JOIN marcas m ON p.marca_id = m.id
             """
@@ -329,6 +339,42 @@ class Producto:
             conexion.close()
 
     # =====================================================
+    # HELPER DE MARCAS (SANEAMIENTO DE LLAVE FORÁNEA)
+    # =====================================================
+
+    @staticmethod
+    def obtener_o_crear_marca_id(cursor, marca_val):
+        """Verifica si la marca existe. Si viene vacía o el ID no existe en la BD,
+
+        crea o retorna una marca válida para evitar 'FOREIGN KEY constraint failed'.
+        """
+        # Caso 1: Viene un entero/ID válido desde el Excel
+        if isinstance(marca_val, int) or (
+            isinstance(marca_val, float) and marca_val.is_integer()
+        ):
+            marca_id = int(marca_val)
+            cursor.execute("SELECT id FROM marcas WHERE id=?", (marca_id,))
+            res = cursor.fetchone()
+            if res:
+                return marca_id
+
+        # Caso 2: Viene un texto con el nombre de la marca o un ID inválido
+        nombre_marca = str(marca_val).strip() if marca_val else "GENERAL"
+        if not nombre_marca or nombre_marca in ["0", "None", "nan"]:
+            nombre_marca = "GENERAL"
+
+        cursor.execute(
+            "SELECT id FROM marcas WHERE UPPER(nombre)=?", (nombre_marca.upper(),)
+        )
+        res = cursor.fetchone()
+
+        if res:
+            return res[0]
+        else:
+            cursor.execute("INSERT INTO marcas (nombre) VALUES (?)", (nombre_marca,))
+            return cursor.lastrowid
+
+    # =====================================================
     # EXPORTAR / IMPORTAR
     # =====================================================
 
@@ -338,13 +384,22 @@ class Producto:
 
     @staticmethod
     def importar_desde_lista(lista):
-        """Importa productos desde una lista de tuplas/listas.
+        """Importa productos desde una lista procesada desde Excel.
 
-        Cada elemento debe tener 11 campos en el orden exacto de la tabla.
+        Sanitiza la marca_id para evitar errores de Foreign Key.
         """
         conexion = obtener_conexion()
         try:
             cursor = conexion.cursor()
+
+            # Procesamiento fila por fila asegurando llaves foráneas válidas
+            lista_saneada = []
+            for fila in lista:
+                fila_m = list(fila)
+                # La posición 3 corresponde a 'marca_id'
+                fila_m[3] = Producto.obtener_o_crear_marca_id(cursor, fila_m[3])
+                lista_saneada.append(fila_m)
+
             cursor.executemany(
                 """
                 INSERT OR REPLACE INTO productos(
@@ -353,16 +408,16 @@ class Producto:
                     nombre,
                     marca_id,
                     unidad,
+                    tipo_venta,
                     precio_compra,
                     precio_venta,
                     existencia,
                     stock_minimo,
-                    tipo_venta,
                     activo
                 )
                 VALUES(?,?,?,?,?,?,?,?,?,?,?)
             """,
-                lista,
+                lista_saneada,
             )
             conexion.commit()
         finally:
