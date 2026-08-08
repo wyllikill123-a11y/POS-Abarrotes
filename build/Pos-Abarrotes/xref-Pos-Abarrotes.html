@@ -4865,15 +4865,17 @@ imported by:
 
 <div class="node">
   <a name="app.database"></a>
-  <a target="code" href="-" type="text/plain"><tt>app.database</tt></a>
-<span class="moduletype">NamespacePackage</span>  <div class="import">
+  <a target="code" href="///C:/Users/Wylliam/Documents/Pos-Abarrotes/app/database/__init__.py" type="text/plain"><tt>app.database</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
 imports:
     <a href="#app">app</a>
+ &#8226;   <a href="#app.database.database">app.database.database</a>
 
   </div>
   <div class="import">
 imported by:
     <a href="#app.database.database">app.database.database</a>
+ &#8226;   <a href="#app.models.turno">app.models.turno</a>
 
   </div>
 
@@ -4892,7 +4894,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#main.py">main.py</a>
+    <a href="#app.database">app.database</a>
+ &#8226;   <a href="#main.py">main.py</a>
 
   </div>
 
@@ -4910,6 +4913,7 @@ imports:
 imported by:
     <a href="#app.models.marca">app.models.marca</a>
  &#8226;   <a href="#app.models.producto">app.models.producto</a>
+ &#8226;   <a href="#app.models.turno">app.models.turno</a>
  &#8226;   <a href="#app.models.venta">app.models.venta</a>
 
   </div>
@@ -4959,11 +4963,33 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="app.models.turno"></a>
+  <a target="code" href="///C:/Users/Wylliam/Documents/Pos-Abarrotes/app/models/turno.py" type="text/plain"><tt>app.models.turno</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#app.database">app.database</a>
+ &#8226;   <a href="#app.models">app.models</a>
+ &#8226;   <a href="#datetime">datetime</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#app.models.venta">app.models.venta</a>
+ &#8226;   <a href="#app.ui.corte_window">app.ui.corte_window</a>
+ &#8226;   <a href="#app.ui.dashboard">app.ui.dashboard</a>
+ &#8226;   <a href="#app.ui.nueva_venta_window">app.ui.nueva_venta_window</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="app.models.venta"></a>
   <a target="code" href="///C:/Users/Wylliam/Documents/Pos-Abarrotes/app/models/venta.py" type="text/plain"><tt>app.models.venta</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#app.models">app.models</a>
+ &#8226;   <a href="#app.models.turno">app.models.turno</a>
  &#8226;   <a href="#collections">collections</a>
  &#8226;   <a href="#pathlib">pathlib</a>
  &#8226;   <a href="#sqlite3">sqlite3</a>
@@ -4990,7 +5016,24 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#app.printing.ticket_printer">app.printing.ticket_printer</a>
+    <a href="#app.printing.corte_ticket_builder">app.printing.corte_ticket_builder</a>
+ &#8226;   <a href="#app.printing.ticket_printer">app.printing.ticket_printer</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="app.printing.corte_ticket_builder"></a>
+  <a target="code" href="///C:/Users/Wylliam/Documents/Pos-Abarrotes/app/printing/corte_ticket_builder.py" type="text/plain"><tt>app.printing.corte_ticket_builder</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#app.printing">app.printing</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#app.ui.corte_window">app.ui.corte_window</a>
 
   </div>
 
@@ -5027,7 +5070,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#app.ui.dashboard">app.ui.dashboard</a>
+    <a href="#app.ui.corte_window">app.ui.corte_window</a>
+ &#8226;   <a href="#app.ui.dashboard">app.ui.dashboard</a>
  &#8226;   <a href="#app.ui.main_window">app.ui.main_window</a>
  &#8226;   <a href="#app.ui.marcas">app.ui.marcas</a>
  &#8226;   <a href="#app.ui.nueva_venta_window">app.ui.nueva_venta_window</a>
@@ -5039,14 +5083,36 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="app.ui.corte_window"></a>
+  <a target="code" href="///C:/Users/Wylliam/Documents/Pos-Abarrotes/app/ui/corte_window.py" type="text/plain"><tt>app.ui.corte_window</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#app.models.turno">app.models.turno</a>
+ &#8226;   <a href="#app.printing.corte_ticket_builder">app.printing.corte_ticket_builder</a>
+ &#8226;   <a href="#app.ui">app.ui</a>
+ &#8226;   <a href="#customtkinter">customtkinter</a>
+ &#8226;   <a href="#tkinter">tkinter</a>
+ &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#app.ui.main_window">app.ui.main_window</a>
+ &#8226;   <a href="#app.ui.nueva_venta_window">app.ui.nueva_venta_window</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="app.ui.dashboard"></a>
   <a target="code" href="///C:/Users/Wylliam/Documents/Pos-Abarrotes/app/ui/dashboard.py" type="text/plain"><tt>app.ui.dashboard</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#app.models.producto">app.models.producto</a>
+ &#8226;   <a href="#app.models.turno">app.models.turno</a>
  &#8226;   <a href="#app.models.venta">app.models.venta</a>
  &#8226;   <a href="#app.ui">app.ui</a>
- &#8226;   <a href="#app.views.historial_ventas">app.views.historial_ventas</a>
  &#8226;   <a href="#customtkinter">customtkinter</a>
 
   </div>
@@ -5064,9 +5130,11 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#app.ui">app.ui</a>
+ &#8226;   <a href="#app.ui.corte_window">app.ui.corte_window</a>
  &#8226;   <a href="#app.ui.dashboard">app.ui.dashboard</a>
  &#8226;   <a href="#app.ui.nueva_venta_window">app.ui.nueva_venta_window</a>
  &#8226;   <a href="#app.ui.productos_window">app.ui.productos_window</a>
+ &#8226;   <a href="#app.views.historial_ventas">app.views.historial_ventas</a>
  &#8226;   <a href="#customtkinter">customtkinter</a>
  &#8226;   <a href="#datetime">datetime</a>
 
@@ -5106,9 +5174,11 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#app.models.producto">app.models.producto</a>
+ &#8226;   <a href="#app.models.turno">app.models.turno</a>
  &#8226;   <a href="#app.models.venta">app.models.venta</a>
  &#8226;   <a href="#app.printing.ticket_printer">app.printing.ticket_printer</a>
  &#8226;   <a href="#app.ui">app.ui</a>
+ &#8226;   <a href="#app.ui.corte_window">app.ui.corte_window</a>
  &#8226;   <a href="#customtkinter">customtkinter</a>
  &#8226;   <a href="#tkinter">tkinter</a>
  &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
@@ -5209,7 +5279,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#app.ui.dashboard">app.ui.dashboard</a>
+    <a href="#app.ui.main_window">app.ui.main_window</a>
 
   </div>
 
@@ -7648,7 +7718,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#app.ui.dashboard">app.ui.dashboard</a>
+    <a href="#app.ui.corte_window">app.ui.corte_window</a>
+ &#8226;   <a href="#app.ui.dashboard">app.ui.dashboard</a>
  &#8226;   <a href="#app.ui.main_window">app.ui.main_window</a>
  &#8226;   <a href="#app.ui.marcas">app.ui.marcas</a>
  &#8226;   <a href="#app.ui.nueva_venta_window">app.ui.nueva_venta_window</a>
@@ -8882,6 +8953,7 @@ imports:
 imported by:
     <a href="#PIL._imagingcms">PIL._imagingcms</a>
  &#8226;   <a href="#_strptime">_strptime</a>
+ &#8226;   <a href="#app.models.turno">app.models.turno</a>
  &#8226;   <a href="#app.ui.main_window">app.ui.main_window</a>
  &#8226;   <a href="#app.views.historial_ventas">app.views.historial_ventas</a>
  &#8226;   <a href="#calendar">calendar</a>
@@ -42038,7 +42110,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#app.ui.marcas">app.ui.marcas</a>
+    <a href="#app.ui.corte_window">app.ui.corte_window</a>
+ &#8226;   <a href="#app.ui.marcas">app.ui.marcas</a>
  &#8226;   <a href="#app.ui.nueva_venta_window">app.ui.nueva_venta_window</a>
  &#8226;   <a href="#app.ui.nuevo_producto">app.ui.nuevo_producto</a>
  &#8226;   <a href="#app.ui.productos_window">app.ui.productos_window</a>
@@ -42182,7 +42255,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#app.ui.marcas">app.ui.marcas</a>
+    <a href="#app.ui.corte_window">app.ui.corte_window</a>
+ &#8226;   <a href="#app.ui.marcas">app.ui.marcas</a>
  &#8226;   <a href="#app.ui.nueva_venta_window">app.ui.nueva_venta_window</a>
  &#8226;   <a href="#app.ui.nuevo_producto">app.ui.nuevo_producto</a>
  &#8226;   <a href="#app.ui.productos_window">app.ui.productos_window</a>

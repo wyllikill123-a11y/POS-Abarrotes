@@ -6,6 +6,7 @@ from app.printing.ticket_printer import TicketPrinter
 from app.models.turno import Turno
 from app.ui.corte_window import CorteWindow
 
+
 class CobroEfectivoDialog(ctk.CTkToplevel):
     def __init__(self, parent, total_a_pagar):
         super().__init__(parent)
@@ -145,15 +146,6 @@ class CobroEfectivoDialog(ctk.CTkToplevel):
             self.confirmado = True
             self.destroy()
 
-    def ejecutar_cobro(self):
-        # 1. Validar si la caja/turno está abierto
-        if not Turno.obtener_activo():
-            # Llama directamente a la ventana para obligar a abrir la caja primero
-            CorteWindow(self)
-            return
-
-        # 2. Si la caja está abierta, continúa con el proceso normal de cobro
-        # ... tu código de cobro existente ...
 
 class VentaExitosaDialog(ctk.CTkToplevel):
     def __init__(self, parent, venta_id, carrito, total, recibido, cambio, metodo):
@@ -248,10 +240,10 @@ class NuevaVentaWindow(ctk.CTkToplevel):
     def __init__(self, master):
         super().__init__(master)
 
-        self.title("Nueva Venta - Abarrotes Rosita-Andrea")
+        self.title("Nueva Venta - POS")
         self.geometry("1050x680")
         self.minsize(950, 580)
-        
+
         master.update_idletasks()
         self.transient(master)
         self.grab_set()
@@ -259,7 +251,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
 
         self.carrito = {}
 
-        # Redirección de escáner y accesos directos
         self.bind("<Key>", self._redireccionar_escanner)
         self.bind("<F12>", lambda e: self.cobrar())
         self.bind("<F2>", lambda e: self.cambiar_cantidad_seleccionada())
@@ -275,7 +266,7 @@ class NuevaVentaWindow(ctk.CTkToplevel):
 
     def _redireccionar_escanner(self, event):
         widget_actual = self.focus_get()
-        
+
         if widget_actual == self.txt_buscar._entry:
             return
 
@@ -290,7 +281,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         self.frame_izquierdo = ctk.CTkFrame(self, fg_color="transparent")
         self.frame_izquierdo.pack(side="left", fill="both", expand=True, padx=(15, 10), pady=15)
 
-        # Panel Derecho Stilizado con Fondo Oscuro Elegante
         self.frame_derecho = ctk.CTkFrame(self, width=320, fg_color="#2B2D31", corner_radius=12, border_width=1, border_color="#1E1F22")
         self.frame_derecho.pack(side="right", fill="both", padx=(10, 15), pady=15)
         self.frame_derecho.pack_propagate(False)
@@ -372,7 +362,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         self.tabla.bind("<Double-1>", lambda e: self.cambiar_cantidad_seleccionada())
 
     def crear_panel_totales(self):
-        # 1. ENCABEZADO DE RESUMEN
         lbl_resumen = ctk.CTkLabel(
             self.frame_derecho,
             text="🧾 RESUMEN DE VENTA",
@@ -389,7 +378,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         )
         self.lbl_articulos.pack(pady=(0, 10))
 
-        # 2. CUADRO DE TOTAL MONETARIO
         frame_total = ctk.CTkFrame(self.frame_derecho, fg_color="#1E1F22", corner_radius=10)
         frame_total.pack(fill="x", padx=15, pady=5)
 
@@ -409,7 +397,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         )
         self.lbl_total_numero.pack(pady=(0, 10))
 
-        # 3. MÉTODO DE PAGO
         ctk.CTkLabel(
             self.frame_derecho,
             text="Método de Pago",
@@ -427,7 +414,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         self.metodo_pago.pack(fill="x", padx=15)
         self.metodo_pago.set("EFECTIVO")
 
-        # 4. BOTÓN COBRAR
         self.btn_cobrar = ctk.CTkButton(
             self.frame_derecho,
             text="💳 COBRAR  [F12]",
@@ -441,9 +427,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         )
         self.btn_cobrar.pack(fill="x", padx=15, pady=(15, 10))
 
-        # =========================================================
-        # 5. GUÍA VISUAL DE ATAJOS DE TECLADO (LLAMATIVA)
-        # =========================================================
         frame_atajos = ctk.CTkFrame(self.frame_derecho, fg_color="#1E1F22", corner_radius=10)
         frame_atajos.pack(fill="both", expand=True, padx=15, pady=(5, 15))
 
@@ -467,7 +450,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
             row = ctk.CTkFrame(frame_atajos, fg_color="transparent")
             row.pack(fill="x", padx=10, pady=3)
 
-            # Insignia de la Tecla (Badge)
             badge = ctk.CTkLabel(
                 row,
                 text=tecla,
@@ -480,7 +462,6 @@ class NuevaVentaWindow(ctk.CTkToplevel):
             )
             badge.pack(side="left")
 
-            # Descripción de la Acción
             lbl_desc = ctk.CTkLabel(
                 row,
                 text=accion,
@@ -588,7 +569,7 @@ class NuevaVentaWindow(ctk.CTkToplevel):
                     self.carrito[codigo]["subtotal"] = nueva_cant * item["precio"]
 
                 self.actualizar_tabla()
-        
+
         self.after(100, lambda: self.txt_buscar.focus())
 
     def eliminar_seleccionado(self):
@@ -612,7 +593,7 @@ class NuevaVentaWindow(ctk.CTkToplevel):
         for producto in self.carrito.values():
             cant = producto["cantidad"]
             cant_str = f"{cant:.3f}" if isinstance(cant, float) and not cant.is_integer() else f"{int(cant)}"
-            
+
             self.tabla.insert(
                 "",
                 "end",
@@ -642,6 +623,12 @@ class NuevaVentaWindow(ctk.CTkToplevel):
     def cobrar(self):
         if not self.carrito:
             messagebox.showwarning("Venta Vacía", "No hay productos en el carrito para procesar.")
+            return
+
+        # Validación del turno/caja antes de continuar
+        if not Turno.obtener_activo():
+            messagebox.showwarning("Caja Cerrada", "Debe abrir caja antes de realizar un cobro.")
+            CorteWindow(self)
             return
 
         total_venta = sum(item["subtotal"] for item in self.carrito.values())
@@ -680,7 +667,7 @@ class NuevaVentaWindow(ctk.CTkToplevel):
 
             self.carrito.clear()
             self.actualizar_tabla()
-            
+
             if hasattr(self, 'txt_buscar') and self.txt_buscar.winfo_exists():
                 self.txt_buscar.delete(0, "end")
 
@@ -697,13 +684,13 @@ class NuevaVentaWindow(ctk.CTkToplevel):
                 metodo=metodo
             )
             self.wait_window(dlg_exito)
-            
+
             if self.winfo_exists():
                 try:
                     self.metodo_pago.set("EFECTIVO")
                 except Exception:
                     pass
-                
+
                 self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
 
         except ValueError as err_val:
@@ -717,4 +704,4 @@ class NuevaVentaWindow(ctk.CTkToplevel):
             traceback.print_exc()
             messagebox.showerror("Error al Registrar Venta", f"Detalle del error:\n{str(err)}")
             if self.winfo_exists():
-                self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None)
+                self.after(100, lambda: self.txt_buscar.focus() if self.winfo_exists() else None) 

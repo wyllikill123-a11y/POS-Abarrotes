@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import sqlite3
 import sys
 from collections import defaultdict
@@ -12,18 +13,20 @@ else:
 DB_PATH = BASE_DIR / "datos" / "abarrotes.db"
 
 
+@contextmanager
 def obtener_conexion():
+    """Generador de contexto que asegura abrir y cerrar correctamente la conexión a SQLite."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-
     conexion = sqlite3.connect(
         DB_PATH, timeout=30, check_same_thread=False
     )
-
     conexion.row_factory = sqlite3.Row
     conexion.execute("PRAGMA foreign_keys = ON")
     conexion.execute("PRAGMA journal_mode=WAL")
-
-    return conexion
+    try:
+        yield conexion
+    finally:
+        conexion.close()
 
 
 class Venta:
@@ -43,40 +46,42 @@ class Venta:
         if not carrito:
             raise ValueError("El carrito está vacío.")
 
-        # 0. Validar que exista un turno/caja abierto actualmente
-        turno_activo = Turno.obtener_activo()
-        if not turno_activo:
-            raise ValueError(
-                "No hay una caja/turno abierto. Por favor, realiza la apertura de caja antes de cobrar."
-            )
-
-        # 1. Validar y acumular cantidades por producto
-        demandas_por_codigo = defaultdict(float)
-        for item in carrito:
-            cant = float(item.get("cantidad", 0))
-            prec = float(item.get("precio", 0))
-
-            if cant <= 0:
-                raise ValueError(
-                    f"Cantidad inválida para '{item.get('nombre', 'Producto')}'."
-                )
-            if prec <= 0:
-                raise ValueError(
-                    f"Precio inválido para '{item.get('nombre', 'Producto')}'."
-                )
-
-            clave_prod = item.get("id") or item.get("codigo")
-            demandas_por_codigo[clave_prod] += cant
+        metodo_pago = metodo_pago.upper().strip()
 
         with obtener_conexion() as conexion:
             cursor = conexion.cursor()
 
             try:
+                # 0. Validar dentro de la misma transacción que exista un turno/caja abierto
+                turno_activo = Turno.obtener_activo()
+                if not turno_activo:
+                    raise ValueError(
+                        "No hay una caja/turno abierto. Por favor, realiza la apertura de caja antes de cobrar."
+                    )
+
+                # 1. Validar y acumular cantidades por producto (priorizando 'id')
+                demandas_por_id = defaultdict(float)
+                for item in carrito:
+                    cant = float(item.get("cantidad", 0))
+                    prec = float(item.get("precio", 0))
+
+                    if cant <= 0:
+                        raise ValueError(
+                            f"Cantidad inválida para '{item.get('nombre', 'Producto')}'."
+                        )
+                    if prec <= 0:
+                        raise ValueError(
+                            f"Precio inválido para '{item.get('nombre', 'Producto')}'."
+                        )
+
+                    clave_prod = item.get("id") or item.get("codigo")
+                    demandas_por_id[clave_prod] += cant
+
                 subtotal = 0.0
                 info_productos = {}
 
                 # 2. Validar existencias globales por producto
-                for clave, cant_requerida in demandas_por_codigo.items():
+                for clave, cant_requerida in demandas_por_id.items():
                     cursor.execute(
                         """
                         SELECT id, existencia, activo, nombre
@@ -126,7 +131,7 @@ class Venta:
                         "El total de la venta no puede ser negativo."
                     )
 
-                if metodo_pago.upper() != "EFECTIVO":
+                if metodo_pago != "EFECTIVO":
                     monto_recibido = total
                     cambio = 0.0
                 else:
@@ -137,18 +142,18 @@ class Venta:
                         )
                     cambio = round(monto_recibido - total, 2)
 
-                # 5. Insertar venta principal con su turno_id correspondiente
+                # 5. Insertar venta principal con estatus 'COMPLETADA'
                 cursor.execute(
                     """
                     INSERT INTO ventas (
-                        turno_id, total, metodo_pago, descuento, monto_recibido, cambio
+                        turno_id, total, metodo_pago, descuento, monto_recibido, cambio, estatus
                     )
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, 'COMPLETADA')
                 """,
                     (
                         turno_activo["id"],
                         total,
-                        metodo_pago.upper(),
+                        metodo_pago,
                         descuento,
                         monto_recibido,
                         cambio,
@@ -206,10 +211,21 @@ class Venta:
 
     @staticmethod
     def cancelar_venta(venta_id):
-        """Cancela una venta devolviendo todo el stock involucrado al inventario."""
+        """Cancela lógicamente una venta y devuelve el stock al inventario."""
         with obtener_conexion() as conexion:
             cursor = conexion.cursor()
             try:
+                # Verificar que la venta exista y esté completada
+                cursor.execute(
+                    "SELECT estatus FROM ventas WHERE id = ?", (venta_id,)
+                )
+                venta = cursor.fetchone()
+
+                if not venta:
+                    raise ValueError(f"No se encontró la venta #{venta_id}.")
+                if venta["estatus"] == "CANCELADA":
+                    raise ValueError(f"La venta #{venta_id} ya se encuentra cancelada.")
+
                 # Obtener detalles de la venta
                 cursor.execute(
                     """
@@ -220,11 +236,6 @@ class Venta:
                     (venta_id,),
                 )
                 detalles = cursor.fetchall()
-
-                if not detalles:
-                    raise ValueError(
-                        f"No se encontró la venta #{venta_id} o no contiene detalles."
-                    )
 
                 # Revertir el stock en productos
                 for item in detalles:
@@ -237,13 +248,10 @@ class Venta:
                         (item["cantidad"], item["producto_id"]),
                     )
 
-                # Eliminar detalles y venta
+                # Marcar la venta como CANCELADA en lugar de eliminarla
                 cursor.execute(
-                    "DELETE FROM detalle_ventas WHERE venta_id = ?",
+                    "UPDATE ventas SET estatus = 'CANCELADA' WHERE id = ?",
                     (venta_id,),
-                )
-                cursor.execute(
-                    "DELETE FROM ventas WHERE id = ?", (venta_id,)
                 )
 
                 conexion.commit()
@@ -251,6 +259,51 @@ class Venta:
             except Exception:
                 conexion.rollback()
                 raise
+
+    # =====================================================
+    # DESGLOSE POR MÉTODO DE PAGO Y REPORTES
+    # =====================================================
+
+    @staticmethod
+    def obtener_ventas_por_metodo_pago(id_turno=None):
+        """Retorna un diccionario con el total vendido agrupado por método de pago."""
+        with obtener_conexion() as conexion:
+            cursor = conexion.cursor()
+
+            if id_turno:
+                query = """
+                    SELECT metodo_pago, SUM(total) 
+                    FROM ventas 
+                    WHERE turno_id = ? AND (estatus IS NULL OR estatus != 'CANCELADA')
+                    GROUP BY metodo_pago
+                """
+                cursor.execute(query, (id_turno,))
+            else:
+                query = """
+                    SELECT metodo_pago, SUM(total) 
+                    FROM ventas 
+                    WHERE DATE(fecha, 'localtime') = DATE('now', 'localtime')
+                      AND (estatus IS NULL OR estatus != 'CANCELADA')
+                    GROUP BY metodo_pago
+                """
+                cursor.execute(query)
+
+            resultados = cursor.fetchall()
+
+        totales = {
+            "EFECTIVO": 0.0,
+            "TRANSFERENCIA": 0.0,
+            "TARJETA": 0.0,
+        }
+
+        for fila in resultados:
+            metodo = fila["metodo_pago"]
+            monto = fila[1]
+            if metodo:
+                clave = metodo.upper().strip()
+                totales[clave] = float(monto or 0)
+
+        return totales
 
     # =====================================================
     # CONSULTAS Y HISTORIAL
@@ -319,6 +372,7 @@ class Venta:
                 cursor.execute("""
                     SELECT * FROM ventas
                     WHERE DATE(fecha, 'localtime') = DATE('now', 'localtime')
+                      AND (estatus IS NULL OR estatus != 'CANCELADA')
                     ORDER BY fecha DESC
                 """)
             else:
@@ -326,6 +380,7 @@ class Venta:
                     """
                     SELECT * FROM ventas
                     WHERE DATE(fecha, 'localtime') = DATE(?, 'localtime')
+                      AND (estatus IS NULL OR estatus != 'CANCELADA')
                     ORDER BY fecha DESC
                 """,
                     (fecha,),
@@ -344,6 +399,7 @@ class Venta:
                         COALESCE(SUM(descuento), 0) as total_descuentos
                     FROM ventas
                     WHERE DATE(fecha, 'localtime') = DATE('now', 'localtime')
+                      AND (estatus IS NULL OR estatus != 'CANCELADA')
                 """)
             else:
                 cursor.execute(
@@ -354,6 +410,7 @@ class Venta:
                         COALESCE(SUM(descuento), 0) as total_descuentos
                     FROM ventas
                     WHERE DATE(fecha, 'localtime') = DATE(?, 'localtime')
+                      AND (estatus IS NULL OR estatus != 'CANCELADA')
                 """,
                     (fecha,),
                 )
@@ -367,6 +424,7 @@ class Venta:
                 """
                 SELECT * FROM ventas
                 WHERE DATE(fecha, 'localtime') BETWEEN DATE(?, 'localtime') AND DATE(?, 'localtime')
+                  AND (estatus IS NULL OR estatus != 'CANCELADA')
                 ORDER BY fecha DESC
             """,
                 (fecha_inicio, fecha_fin),
@@ -387,7 +445,8 @@ class Venta:
             cursor.execute(
                 """
                 SELECT * FROM ventas
-                WHERE CAST(id AS TEXT) LIKE ? OR metodo_pago LIKE ?
+                WHERE (CAST(id AS TEXT) LIKE ? OR metodo_pago LIKE ?)
+                  AND (estatus IS NULL OR estatus != 'CANCELADA')
                 ORDER BY fecha DESC
             """,
                 (f"%{texto}%", f"%{texto}%"),
@@ -411,6 +470,7 @@ class Venta:
                 SELECT COALESCE(SUM(total), 0)
                 FROM ventas
                 WHERE DATE(fecha, 'localtime') = DATE('now', 'localtime')
+                  AND (estatus IS NULL OR estatus != 'CANCELADA')
             """)
             return cursor.fetchone()[0]
 
@@ -418,5 +478,5 @@ class Venta:
     def contar_ventas():
         with obtener_conexion() as conexion:
             cursor = conexion.cursor()
-            cursor.execute("SELECT COUNT(*) FROM ventas")
+            cursor.execute("SELECT COUNT(*) FROM ventas WHERE estatus IS NULL OR estatus != 'CANCELADA'")
             return cursor.fetchone()[0]

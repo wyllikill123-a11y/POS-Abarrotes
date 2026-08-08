@@ -145,15 +145,15 @@ class MainWindow(ctk.CTk):
         lbl_menu.pack(expand=True)
 
         # =========================================================
-        # BOTONES DEL MENÚ EN MAYÚSCULAS Y 17PT
+        # BOTONES DEL MENÚ CON COLOR INDIVIDUAL (BG, HOVER, TEXTO)
         # =========================================================
         botones = [
-            ("🛒  NUEVA VENTA", self.abrir_ventas, "#2563EB", "#1D4ED8", "#FFFFFF"),
-            ("🔑  CORTE / CAJA", self.abrir_caja_corte, "#059669", "#047857", "#FFFFFF"),
-            ("📦  PRODUCTOS", self.abrir_productos, "transparent", "#E2E8F0", "#1E293B"),
-            ("📊  INVENTARIO", None, "transparent", "#E2E8F0", "#1E293B"),
-            ("📈  REPORTES / HISTORIAL", self.abrir_historial_ventas, "transparent", "#E2E8F0", "#1E293B"),
-            ("⚙  CONFIGURACIÓN", None, "transparent", "#E2E8F0", "#1E293B"),
+            ("🛒  NUEVA VENTA", self.abrir_ventas, "#2563EB", "#1D4ED8", "#FFFFFF"),       # Azul Primario
+            ("🔑  CORTE / CAJA", self.abrir_caja_corte, "#059669", "#047857", "#FFFFFF"),   # Verde Esmeralda
+            ("📦  PRODUCTOS", self.abrir_productos, "#7C3AED", "#6D28D9", "#FFFFFF"),      # Púrpura
+            ("📊  INVENTARIO", None, "#D97706", "#B45309", "#FFFFFF"),                     # Naranja/Ámbar
+            ("📈  REPORTES / HISTORIAL", self.abrir_historial_ventas, "#4F46E5", "#4338CA", "#FFFFFF"), # Índigo
+            ("⚙  CONFIGURACIÓN", None, "#475569", "#334155", "#FFFFFF"),                   # Gris Pizarra
         ]
 
         for texto, comando, color_bg, color_hover, color_texto in botones:

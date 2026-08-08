@@ -107,6 +107,7 @@ def inicializar_bd():
             descuento REAL DEFAULT 0,
             monto_recibido REAL NOT NULL,
             cambio REAL NOT NULL,
+            estatus TEXT DEFAULT 'ACTIVA',
             fecha TEXT DEFAULT (DATETIME('now', 'localtime')),
             FOREIGN KEY (turno_id) REFERENCES turnos(id) ON DELETE SET NULL
         )
@@ -136,6 +137,11 @@ def inicializar_bd():
 
     try:
         cursor.execute("ALTER TABLE ventas ADD COLUMN turno_id INTEGER REFERENCES turnos(id)")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE ventas ADD COLUMN estatus TEXT DEFAULT 'ACTIVA'")
     except sqlite3.OperationalError:
         pass
 
