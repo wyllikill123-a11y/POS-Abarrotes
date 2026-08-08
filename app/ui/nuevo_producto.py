@@ -35,29 +35,24 @@ class NuevoProducto(tk.Toplevel):
         # Construir interfaz
         self.crear_widgets()
 
-        # Cargar datos o seleccionar valor por defecto
+        # Cargar datos o seleccionar valor por defecto + Foco inicial optimizado
         if self.producto:
             self.cargar_datos_producto()
+            self.txt_nombre.focus_set()
         else:
             self.seleccionar_primeros_elementos()
-
-        # Focus inicial
-        self.txt_codigo.focus_set()
+            self.txt_codigo.focus_set()
 
     def _on_unidad_changed(self, event=None):
         """Ajusta automáticamente el tipo de venta según la unidad seleccionada."""
         unidad_seleccionada = self.cmb_unidad.get().strip().lower()
-        UNIDADES_GRANEL = {
-            "kg",
-            "gramo",
-            "litro",
-            "mililitro"
-        }
-        
+        UNIDADES_GRANEL = {"kg", "gramo", "litro", "mililitro"}
+
         if unidad_seleccionada in UNIDADES_GRANEL:
             self.cmb_tipo_venta.set("Granel")
         else:
             self.cmb_tipo_venta.set("Unidad")
+
     # ==========================================================
     # CARGAR CATÁLOGOS DESDE LA BD
     # ==========================================================
@@ -169,11 +164,8 @@ class NuevoProducto(tk.Toplevel):
             row=row_idx, column=0, sticky=tk.W, pady=4
         )
         self.cmb_tipo_venta = ttk.Combobox(
-            container,
-            values=["Unidad", "Granel"],
-            state="readonly"
+            container, values=["Unidad", "Granel"], state="readonly"
         )
-
         self.cmb_tipo_venta.set("Unidad")
         self.cmb_tipo_venta.grid(row=row_idx, column=1, sticky=tk.EW, pady=4)
         row_idx += 1
@@ -285,6 +277,13 @@ class NuevoProducto(tk.Toplevel):
         self.txt_stock_minimo.delete(0, tk.END)
         self.txt_stock_minimo.insert(0, str(prod.get("stock_minimo", 5)))
 
+    def refrescar_parent(self):
+        """Intenta invocar métodos de actualización comunes en el módulo padre."""
+        if hasattr(self.parent, "cargar_productos"):
+            self.parent.cargar_productos()
+        elif hasattr(self.parent, "actualizar_tabla"):
+            self.parent.actualizar_tabla()
+
     def guardar_producto(self):
         codigo = self.txt_codigo.get().strip()
         codigo_barras = self.txt_codigo_barras.get().strip() or None
@@ -389,6 +388,8 @@ class NuevoProducto(tk.Toplevel):
                     "Éxito", "Producto guardado correctamente.", parent=self
                 )
 
+            # Notificar al padre y cerrar modal
+            self.refrescar_parent()
             self.destroy()
 
         except Exception as e:

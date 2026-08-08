@@ -2,6 +2,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
+# Configuración de ruta base
 if getattr(sys, "frozen", False):
     BASE_DIR = Path(sys.executable).parent
 else:
@@ -14,9 +15,7 @@ def obtener_conexion():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     conexion = sqlite3.connect(
-        DB_PATH,
-        timeout=30,
-        check_same_thread=False
+        DB_PATH, timeout=30, check_same_thread=False
     )
 
     conexion.row_factory = sqlite3.Row
@@ -33,9 +32,7 @@ class Producto:
         codigo,
         codigo_barras,
         nombre,
-        categoria_id,
         marca_id,
-        proveedor_id,
         unidad,
         tipo_venta,
         precio_compra,
@@ -45,11 +42,11 @@ class Producto:
         activo=1,
     ):
         self.codigo = str(codigo).strip()
-        self.codigo_barras = str(codigo_barras).strip() if codigo_barras else ""
+        self.codigo_barras = (
+            str(codigo_barras).strip() if codigo_barras else ""
+        )
         self.nombre = str(nombre).strip()
-        self.categoria_id = categoria_id
         self.marca_id = marca_id
-        self.proveedor_id = proveedor_id
         self.unidad = unidad
         self.tipo_venta = tipo_venta
         self.precio_compra = precio_compra
@@ -63,26 +60,26 @@ class Producto:
     # =====================================================
     def guardar(self):
         if Producto.existe_codigo(self.codigo):
-            raise ValueError(f"Ya existe un producto registrado con el código '{self.codigo}'.")
+            raise ValueError(
+                f"Ya existe un producto registrado con el código '{self.codigo}'."
+            )
 
         with obtener_conexion() as conexion:
             cursor = conexion.cursor()
             cursor.execute(
                 """
                 INSERT INTO productos(
-                    codigo, codigo_barras, nombre, categoria_id, marca_id,
-                    proveedor_id, unidad, tipo_venta, precio_compra,
+                    codigo, codigo_barras, nombre, marca_id,
+                    unidad, tipo_venta, precio_compra,
                     precio_venta, existencia, stock_minimo, activo
                 )
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?)
             """,
                 (
                     self.codigo,
                     self.codigo_barras,
                     self.nombre,
-                    self.categoria_id,
                     self.marca_id,
-                    self.proveedor_id,
                     self.unidad,
                     self.tipo_venta,
                     self.precio_compra,
@@ -103,9 +100,7 @@ class Producto:
         codigo,
         codigo_barras,
         nombre,
-        categoria_id,
         marca_id,
-        proveedor_id,
         unidad,
         tipo_venta,
         precio_compra,
@@ -119,7 +114,9 @@ class Producto:
 
         # Si cambió el código, verificar que el nuevo no exista en otro producto
         if codigo != codigo_original and Producto.existe_codigo(codigo):
-            raise ValueError(f"El nuevo código '{codigo}' ya pertenece a otro producto.")
+            raise ValueError(
+                f"El nuevo código '{codigo}' ya pertenece a otro producto."
+            )
 
         with obtener_conexion() as conexion:
             cursor = conexion.cursor()
@@ -130,9 +127,7 @@ class Producto:
                     codigo=?,
                     codigo_barras=?,
                     nombre=?,
-                    categoria_id=?,
                     marca_id=?,
-                    proveedor_id=?,
                     unidad=?,
                     tipo_venta=?,
                     precio_compra=?,
@@ -147,9 +142,7 @@ class Producto:
                     codigo,
                     str(codigo_barras).strip() if codigo_barras else "",
                     str(nombre).strip(),
-                    categoria_id,
                     marca_id,
-                    proveedor_id,
                     unidad,
                     tipo_venta,
                     precio_compra,
@@ -209,13 +202,9 @@ class Producto:
                 """
                 SELECT 
                     p.*,
-                    COALESCE(c.nombre, 'Sin Categoria') AS categoria_nombre,
-                    COALESCE(m.nombre, 'Sin Marca') AS marca_nombre,
-                    COALESCE(pr.nombre, 'Sin Proveedor') AS proveedor_nombre
+                    COALESCE(m.nombre, 'Sin Marca') AS marca_nombre
                 FROM productos p
-                LEFT JOIN categorias c ON p.categoria_id = c.id
                 LEFT JOIN marcas m ON p.marca_id = m.id
-                LEFT JOIN proveedores pr ON p.proveedor_id = pr.id
                 WHERE p.codigo=? OR p.codigo_barras=?
             """,
                 (codigo, codigo),
@@ -232,13 +221,9 @@ class Producto:
             sql = """
                 SELECT 
                     p.*,
-                    COALESCE(c.nombre, 'Sin Categoria') AS categoria_nombre,
-                    COALESCE(m.nombre, 'Sin Marca') AS marca_nombre,
-                    COALESCE(pr.nombre, 'Sin Proveedor') AS proveedor_nombre
+                    COALESCE(m.nombre, 'Sin Marca') AS marca_nombre
                 FROM productos p
-                LEFT JOIN categorias c ON p.categoria_id = c.id
                 LEFT JOIN marcas m ON p.marca_id = m.id
-                LEFT JOIN proveedores pr ON p.proveedor_id = pr.id
             """
 
             if not incluir_desactivados:
@@ -259,18 +244,13 @@ class Producto:
             sql = """
                 SELECT 
                     p.*,
-                    COALESCE(c.nombre, 'Sin Categoria') AS categoria_nombre,
-                    COALESCE(m.nombre, 'Sin Marca') AS marca_nombre,
-                    COALESCE(pr.nombre, 'Sin Proveedor') AS proveedor_nombre
+                    COALESCE(m.nombre, 'Sin Marca') AS marca_nombre
                 FROM productos p
-                LEFT JOIN categorias c ON p.categoria_id = c.id
                 LEFT JOIN marcas m ON p.marca_id = m.id
-                LEFT JOIN proveedores pr ON p.proveedor_id = pr.id
                 WHERE (
                     p.codigo LIKE ?
                     OR p.codigo_barras LIKE ?
                     OR p.nombre LIKE ?
-                    OR c.nombre LIKE ?
                     OR m.nombre LIKE ?
                 )
             """
@@ -281,7 +261,9 @@ class Producto:
             sql += " ORDER BY p.nombre"
 
             parametro = f"%{texto.strip()}%"
-            cursor.execute(sql, (parametro, parametro, parametro, parametro, parametro))
+            cursor.execute(
+                sql, (parametro, parametro, parametro, parametro)
+            )
             return cursor.fetchall()
 
     # =====================================================
@@ -345,11 +327,11 @@ class Producto:
             cursor.executemany(
                 """
                 INSERT OR REPLACE INTO productos(
-                    codigo, codigo_barras, nombre, categoria_id, marca_id,
-                    proveedor_id, unidad, tipo_venta, precio_compra,
+                    codigo, codigo_barras, nombre, marca_id,
+                    unidad, tipo_venta, precio_compra,
                     precio_venta, existencia, stock_minimo, activo
                 )
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?)
             """,
                 lista,
             )

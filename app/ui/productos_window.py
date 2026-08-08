@@ -1,10 +1,9 @@
 import customtkinter as ctk
-from tkinter import ttk
-from tkinter import messagebox
-from tkinter import filedialog
+from tkinter import ttk, messagebox, filedialog
 import pandas as pd
 
 from app.models.producto import Producto
+from app.models.marca import Marca
 from app.ui.nuevo_producto import NuevoProducto
 
 
@@ -246,7 +245,9 @@ class ProductosWindow(ctk.CTkToplevel):
         producto = Producto.buscar_por_codigo(codigo)
 
         if not producto:
-            messagebox.showerror("Error", "No se encontró la información del producto.")
+            messagebox.showerror(
+                "Error", "No se encontró la información del producto."
+            )
             return
 
         ventana = NuevoProducto(self, producto)
@@ -373,122 +374,111 @@ class ProductosWindow(ctk.CTkToplevel):
             )
 
     def cargar_productos(self):
-            productos = Producto.obtener_todos(self.mostrar_desactivados.get())
-            
-            # Ordenar los productos por código interno (convertido a texto/minúsculas para evitar errores)
-            productos_ordenados = sorted(
-                productos, 
-                key=lambda p: str(dict(p).get("codigo", "")).lower()
-            )
-            
-            self._poblar_tabla(productos_ordenados)
+        productos = Producto.obtener_todos(self.mostrar_desactivados.get())
 
-            self.lbl_total.configure(
-                text=f"Productos registrados: {len(productos_ordenados)}"
-            )
+        # Ordenar los productos por código interno
+        productos_ordenados = sorted(
+            productos,
+            key=lambda p: str(dict(p).get("codigo", "")).lower(),
+        )
 
-            self.btn_editar.configure(state="normal", fg_color="#2196F3")
-            self.btn_accion.configure(
-                text="❌ Desactivar",
-                fg_color="#D32F2F",
-                hover_color="#C62828",
-                command=self.desactivar_producto_boton,
-            )
+        self._poblar_tabla(productos_ordenados)
+
+        self.lbl_total.configure(
+            text=f"Productos registrados: {len(productos_ordenados)}"
+        )
+
+        self.btn_editar.configure(state="normal", fg_color="#2196F3")
+        self.btn_accion.configure(
+            text="❌ Desactivar",
+            fg_color="#D32F2F",
+            hover_color="#C62828",
+            command=self.desactivar_producto_boton,
+        )
 
     def buscar_producto(self, event=None):
-            texto = self.buscar.get().strip()
-            productos = Producto.buscar(
-                texto, self.mostrar_desactivados.get()
-            )
-            
-            # Mantener el orden por código interno al realizar búsquedas
-            productos_ordenados = sorted(
-                productos, 
-                key=lambda p: str(dict(p).get("codigo", "")).lower()
-            )
-            
-            self._poblar_tabla(productos_ordenados)
+        texto = self.buscar.get().strip()
+        productos = Producto.buscar(
+            texto, self.mostrar_desactivados.get()
+        )
 
-            self.lbl_total.configure(
-                text=f"Productos encontrados: {len(productos_ordenados)}"
-            )
+        # Mantener el orden por código interno al realizar búsquedas
+        productos_ordenados = sorted(
+            productos,
+            key=lambda p: str(dict(p).get("codigo", "")).lower(),
+        )
 
+        self._poblar_tabla(productos_ordenados)
+
+        self.lbl_total.configure(
+            text=f"Productos encontrados: {len(productos_ordenados)}"
+        )
 
     def abrir_nuevo_producto(self):
-            ventana = NuevoProducto(self)
-            self.wait_window(ventana)
-            self.cargar_productos()
-            if hasattr(self.master, "dashboard"):
-                self.master.dashboard.actualizar()
-
-    def buscar_producto(self, event=None):
-            texto = self.buscar.get().strip()
-            productos = Producto.buscar(
-                texto, self.mostrar_desactivados.get()
-            )
-            self._poblar_tabla(productos)
-
-            self.lbl_total.configure(
-                text=f"Productos encontrados: {len(productos)}"
-            )
+        ventana = NuevoProducto(self)
+        self.wait_window(ventana)
+        self.cargar_productos()
+        if hasattr(self.master, "dashboard"):
+            self.master.dashboard.actualizar()
 
     def exportar_a_excel(self):
-                try:
-                    datos_raw = Producto.obtener_todos_para_excel()
+        try:
+            datos_raw = Producto.obtener_todos_para_excel()
 
-                    if not datos_raw:
-                        messagebox.showwarning(
-                            "Atención",
-                            "No hay productos registrados para exportar.",
-                        )
-                        return
+            if not datos_raw:
+                messagebox.showwarning(
+                    "Atención",
+                    "No hay productos registrados para exportar.",
+                )
+                return
 
-                    ruta_archivo = filedialog.asksaveasfilename(
-                        title="Guardar inventario como",
-                        defaultextension=".xlsx",
-                        filetypes=[("Archivos de Excel", "*.xlsx")],
-                    )
+            ruta_archivo = filedialog.asksaveasfilename(
+                title="Guardar inventario como",
+                defaultextension=".xlsx",
+                filetypes=[("Archivos de Excel", "*.xlsx")],
+            )
 
-                    if not ruta_archivo:
-                        return
+            if not ruta_archivo:
+                return
 
-                    datos_dict = [dict(fila) for fila in datos_raw]
-                    df = pd.DataFrame(datos_dict)
+            datos_dict = [dict(fila) for fila in datos_raw]
+            df = pd.DataFrame(datos_dict)
 
-                    # Mapeo de columnas sin 'categoria' ni 'proveedor'
-                    df = df.rename(
-                        columns={
-                            "codigo": "Código",
-                            "codigo_barras": "Código Barras",
-                            "nombre": "Producto",
-                            "marca_id": "Marca ID",
-                            "marca": "Marca",
-                            "unidad": "Unidad",
-                            "tipo_venta": "Tipo Venta",
-                            "precio_compra": "Precio Compra",
-                            "precio_venta": "Precio Venta",
-                            "existencia": "Stock",
-                            "stock_minimo": "Stock Mínimo",
-                            "activo": "Activo",
-                        }
-                    )
+            # Mapeo exacto de columnas solicitado
+            columnas_mapeo = {
+                "codigo": "Código",
+                "codigo_barras": "Código Barras",
+                "nombre": "Producto",
+                "marca_id": "Marca ID",
+                "marca": "Marca",
+                "unidad": "Unidad",
+                "tipo_venta": "Tipo Venta",
+                "precio_compra": "Precio Compra",
+                "precio_venta": "Precio Venta",
+                "existencia": "Stock",
+                "stock_minimo": "Stock Mínimo",
+                "activo": "Activo",
+            }
 
-                    # Si el DataFrame por alguna razón conserva 'categoria_id' o 'proveedor', se filtran antes de guardar
-                    columnas_validas = [col for col in df.columns if col not in ["categoria", "categoria_id", "proveedor"]]
-                    df = df[columnas_validas]
+            df = df.rename(columns=columnas_mapeo)
 
-                    df.to_excel(ruta_archivo, index=False, sheet_name="Inventario")
+            # Filtrar asegurando solo el conjunto de columnas solicitado
+            columnas_finales = [
+                col for col in columnas_mapeo.values() if col in df.columns
+            ]
+            df = df[columnas_finales]
 
-                    messagebox.showinfo(
-                        "Éxito",
-                        f"Inventario exportado correctamente en:\n{ruta_archivo}",
-                    )
+            df.to_excel(ruta_archivo, index=False, sheet_name="Inventario")
 
-                except Exception as e:
-                    messagebox.showerror(
-                        "Error", f"No se pudo exportar a Excel: {e}"
-                    )
+            messagebox.showinfo(
+                "Éxito",
+                f"Inventario exportado correctamente en:\n{ruta_archivo}",
+            )
 
+        except Exception as e:
+            messagebox.showerror(
+                "Error", f"No se pudo exportar a Excel: {e}"
+            )
 
     def importar_desde_excel(self):
         try:
@@ -503,17 +493,13 @@ class ProductosWindow(ctk.CTkToplevel):
             df = pd.read_excel(ruta_archivo)
             df = df.fillna("")
 
-            if "Código Barras" not in df.columns:
-                df["Código Barras"] = ""
-
-            if "Marca ID" not in df.columns:
-                df["Marca ID"] = 1
-
+            # Columnas requeridas exactas
             columnas_necesarias = [
                 "Código",
                 "Código Barras",
                 "Producto",
                 "Marca ID",
+                "Marca",
                 "Unidad",
                 "Tipo Venta",
                 "Precio Compra",
@@ -523,7 +509,16 @@ class ProductosWindow(ctk.CTkToplevel):
                 "Activo",
             ]
 
-            # Validación explícita de columnas faltantes
+            # Autocompletar columnas opcionales si faltan en el Excel
+            if "Código Barras" not in df.columns:
+                df["Código Barras"] = ""
+            if "Marca ID" not in df.columns:
+                df["Marca ID"] = ""
+            if "Marca" not in df.columns:
+                df["Marca"] = ""
+            if "Activo" not in df.columns:
+                df["Activo"] = 1
+
             columnas_faltantes = [
                 col for col in columnas_necesarias if col not in df.columns
             ]
@@ -535,18 +530,86 @@ class ProductosWindow(ctk.CTkToplevel):
                 )
                 return
 
-            lista_productos = df[columnas_necesarias].values.tolist()
+            # Cargar catálogo de marcas para resolver Marca ID si viene vacío o texto
+            mapa_marcas = {}
+            try:
+                for mar in Marca.obtener_todas():
+                    mapa_marcas[str(mar["nombre"]).strip().lower()] = mar["id"]
+            except Exception:
+                pass
+
+            # Procesar filas adecuando los IDs de marca
+            filas_a_importar = []
+            for _, row in df.iterrows():
+                codigo = str(row["Código"]).strip()
+                codigo_barras = str(row["Código Barras"]).strip()
+                nombre = str(row["Producto"]).strip()
+                marca_id = row["Marca ID"]
+                nombre_marca = str(row["Marca"]).strip()
+                unidad = str(row["Unidad"]).strip() or "Pieza"
+                tipo_venta = str(row["Tipo Venta"]).strip() or "Unidad"
+
+                try:
+                    precio_compra = float(row["Precio Compra"])
+                except ValueError:
+                    precio_compra = 0.0
+
+                try:
+                    precio_venta = float(row["Precio Venta"])
+                except ValueError:
+                    precio_venta = 0.0
+
+                try:
+                    stock = float(row["Stock"])
+                except ValueError:
+                    stock = 0.0
+
+                try:
+                    stock_minimo = float(row["Stock Mínimo"])
+                except ValueError:
+                    stock_minimo = 5.0
+
+                try:
+                    activo = int(row["Activo"])
+                except ValueError:
+                    activo = 1
+
+                # Resolver marca_id mediante el nombre de marca si marca_id es inválido
+                if not marca_id or str(marca_id).strip() == "" or str(marca_id) == "nan":
+                    if nombre_marca and nombre_marca.lower() in mapa_marcas:
+                        marca_id = mapa_marcas[nombre_marca.lower()]
+                    else:
+                        # Si existe una marca creada o Genérica
+                        marca_id = list(mapa_marcas.values())[0] if mapa_marcas else 1
+
+                filas_a_importar.append(
+                    [
+                        codigo,
+                        codigo_barras,
+                        nombre,
+                        int(marca_id),
+                        unidad,
+                        tipo_venta,
+                        precio_compra,
+                        precio_venta,
+                        stock,
+                        stock_minimo,
+                        activo,
+                    ]
+                )
 
             confirmar = messagebox.askyesno(
                 "Confirmar Importación",
-                f"Se detectaron {len(lista_productos)} productos en el archivo.\n\n¿Desea importarlos a la base de datos?\nNota: Si un código ya existe, se sobrescribirá.",
+                f"Se detectaron {len(filas_a_importar)} productos en el archivo.\n\n"
+                f"¿Desea importarlos a la base de datos?\n"
+                f"Nota: Si un código ya existe, se sobrescribirá.",
             )
 
             if confirmar:
-                Producto.importar_desde_lista(lista_productos)
+                Producto.importar_desde_lista(filas_a_importar)
                 messagebox.showinfo(
                     "Éxito",
-                    f"¡Se han importado/actualizado {len(lista_productos)} productos correctamente!",
+                    f"¡Se han importado/actualizado {len(filas_a_importar)} productos correctamente!",
                 )
 
                 self.cargar_productos()
@@ -579,7 +642,6 @@ class ProductosWindow(ctk.CTkToplevel):
         for indice, (_, fila) in enumerate(filas):
             self.tabla.move(fila, "", indice)
 
-        # Actualiza el comando del encabezado preservando 'columna' explícitamente mediante binding por argumento
         self.tabla.heading(
             columna,
             command=lambda c=columna: self.ordenar_por_columna(c, not reverso),
